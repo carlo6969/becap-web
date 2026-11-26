@@ -1,6 +1,12 @@
 <?php
 // Crea al primer administrador. Solo funciona mientras no exista ningún usuario.
 if ((int)qv('SELECT COUNT(*) FROM usuarios') > 0) redirect('entrar');
+// Sin clave de instalación configurada, el primer acceso queda cerrado por completo
+if (strlen((string)(config()['setup_key'] ?? '')) < 16) {
+  layout_inicio('Panel en preparación');
+  ?><div class="login card"><img src="../img/logo.webp" alt="Be Cap" class="lg"><h1>Panel en preparación</h1><p class="muted">El acceso del equipo de Be Cap se activa durante la capacitación con APARECE.</p></div><?php
+  layout_fin(); exit;
+}
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $clave_inst = (string)(config()['setup_key'] ?? '');
