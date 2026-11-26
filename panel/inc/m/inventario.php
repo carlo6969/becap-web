@@ -19,6 +19,7 @@ if (es_post()) {
       $nuevo = (int)$v;
       if ($r['stock'] === null || (int)$r['stock'] !== $nuevo) {
         mover_stock($id, $nuevo - (int)($r['stock'] ?? 0), 'ajuste', $r['stock'] === null ? 'Inventario inicial' : 'Conteo');
+        if ($nuevo > (int)($r['stock'] ?? 0) && $nuevo > 0) q('UPDATE inventario SET disponible=1 WHERE id=?', [$id]); // si llegó mercancía, vuelve a estar a la venta
         $n++;
       }
     }
@@ -29,6 +30,7 @@ if (es_post()) {
     if (!$id || !$c || !qv('SELECT id FROM inventario WHERE id=?', [$id])) flash('Elige el producto y la cantidad.', 'err');
     else {
       $final = mover_stock($id, $tipo === 'salida' ? -$c : $c, $tipo, txt($_POST['nota'] ?? '', 200) ?: null);
+      if ($tipo === 'entrada' && $final > 0) q('UPDATE inventario SET disponible=1 WHERE id=?', [$id]);
       flash(($tipo === 'entrada' ? "Entrada de $c registrada" : "Salida de $c registrada") . ". Ahora hay $final.");
     }
   }
