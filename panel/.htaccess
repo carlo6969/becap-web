@@ -1,0 +1,14 @@
+# Panel de control BeCap
+DirectoryIndex index.php
+Options -Indexes
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "same-origin"
+  Header always set X-Robots-Tag "noindex, nofollow"
+  <FilesMatch "\.php$">
+    Header set Cache-Control "no-store"
+  </FilesMatch>
+</IfModule>
+<FilesMatch "\.(sql|md|json|example)$">
+  Require all denied
+</FilesMatch>

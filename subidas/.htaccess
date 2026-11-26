@@ -1,0 +1,8 @@
+# Fotos subidas desde el panel: solo imágenes, nunca código
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar|pl|py|cgi|sh|html?|js|svg)$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>

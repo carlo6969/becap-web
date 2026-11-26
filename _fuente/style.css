@@ -583,3 +583,5 @@ footer a:hover,footer ul button:hover{color:var(--yellow)}
 .ship-info.ok{border-color:var(--green)}
 .seg button small+small{margin-top:2px}
 .tot-ship{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--muted);margin:-6px 0 12px}
+.nav .team-link{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
+.mnav .team-link{color:var(--muted);font-size:16px;justify-content:flex-start;gap:8px}
