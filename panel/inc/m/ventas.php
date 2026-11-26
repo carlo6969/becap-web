@@ -35,10 +35,12 @@ if ($p === 'venta') {
       // cobro inicial opcional
       $m = num($_POST['cobro_inicial'] ?? 0);
       if ($m > 0) { q('INSERT INTO cobros (venta_id, fecha, monto, metodo, usuario_id, creado) VALUES (?,?,?,?,?,?)', [$id, ahora(), $m, array_key_exists($_POST['metodo_inicial'] ?? '', METODOS) ? $_POST['metodo_inicial'] : 'efectivo', usuario()['id'], ahora()]); venta_recalcular($id); }
-      flash('Venta guardada.');
+      $neg = venta_sincronizar_stock($id);
+      flash('Venta guardada.' . ($neg ? ' Ojo: quedó inventario en negativo de ' . implode(', ', $neg) . '. Revisa el inventario.' : ''), $neg ? 'err' : 'ok');
     } elseif ($id && $acc === 'estado' && array_key_exists($_POST['estado'] ?? '', ESTADOS_VENTA)) {
       q('UPDATE ventas SET estado=?, actualizado=? WHERE id=?', [$_POST['estado'], ahora(), $id]);
-      flash('Estado actualizado: ' . ESTADOS_VENTA[$_POST['estado']] . '.');
+      $neg = venta_sincronizar_stock($id);
+      flash('Estado actualizado: ' . ESTADOS_VENTA[$_POST['estado']] . '.' . ($neg ? ' Ojo: quedó inventario en negativo de ' . implode(', ', $neg) . '.' : ''), $neg ? 'err' : 'ok');
     } elseif ($id && $acc === 'entregada') {
       q('UPDATE ventas SET entregada=1-entregada, actualizado=? WHERE id=?', [ahora(), $id]);
       flash('Entrega actualizada.');
@@ -57,6 +59,8 @@ if ($p === 'venta') {
       venta_recalcular($id);
       flash('Pago eliminado.');
     } elseif ($id && $acc === 'eliminar' && es_admin()) {
+      q("UPDATE ventas SET estado='cancelada' WHERE id=?", [$id]);
+      venta_sincronizar_stock($id); // regresa al inventario lo que se había descontado
       q('DELETE FROM partidas WHERE doc=\'venta\' AND doc_id=?', [$id]);
       q('DELETE FROM cobros WHERE venta_id=?', [$id]);
       q('UPDATE cotizaciones SET venta_id=NULL WHERE venta_id=?', [$id]);
@@ -153,7 +157,7 @@ if ($p === 'venta') {
   <div class="card danger">
     <h3>Más opciones</h3>
     <div class="acts">
-      <?php if ($v['estado'] !== 'cancelada'): ?><form method="post" data-confirm="¿Cancelar esta venta? No contará en los reportes."><?= csrf_field() ?><input type="hidden" name="accion" value="estado"><input type="hidden" name="estado" value="cancelada"><button class="btn ghost">Cancelar venta</button></form>
+      <?php if ($v['estado'] !== 'cancelada'): ?><form method="post" data-confirm="¿Cancelar esta venta? No contará en los reportes y los productos regresan al inventario."><?= csrf_field() ?><input type="hidden" name="accion" value="estado"><input type="hidden" name="estado" value="cancelada"><button class="btn ghost">Cancelar venta</button></form>
       <?php else: ?><form method="post"><?= csrf_field() ?><input type="hidden" name="accion" value="estado"><input type="hidden" name="estado" value="confirmada"><button class="btn ghost">Reactivar venta</button></form><?php endif; ?>
       <?php if (es_admin()): ?><form method="post" data-confirm="¿Eliminar la venta para siempre? Esto no se puede deshacer."><?= csrf_field() ?><input type="hidden" name="accion" value="eliminar"><button class="btn red">Eliminar</button></form><?php endif; ?>
     </div>

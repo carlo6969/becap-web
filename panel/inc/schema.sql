@@ -112,4 +112,30 @@ CREATE TABLE IF NOT EXISTS cobros (
   INDEX (venta_id), INDEX (fecha)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO ajustes (clave, valor) VALUES ('schema', '1');
+CREATE TABLE IF NOT EXISTS inventario (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  producto_web_id INT NULL,
+  descripcion VARCHAR(190) NOT NULL,
+  categoria VARCHAR(40) NULL,
+  precio DECIMAL(10,2) NOT NULL DEFAULT 0,
+  stock INT NULL,
+  minimo INT NOT NULL DEFAULT 1,
+  activo TINYINT(1) NOT NULL DEFAULT 1,
+  actualizado DATETIME NOT NULL,
+  UNIQUE KEY prod_desc (producto_web_id, descripcion)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS movimientos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  inventario_id INT NOT NULL,
+  tipo ENUM('entrada','salida','ajuste','venta','devolucion') NOT NULL,
+  cantidad INT NOT NULL,
+  stock_final INT NULL,
+  nota VARCHAR(200) NULL,
+  venta_id INT NULL,
+  usuario_id INT NULL,
+  creado DATETIME NOT NULL,
+  INDEX (inventario_id), INDEX (venta_id), INDEX (creado)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO ajustes (clave, valor) VALUES ('schema', '0')

@@ -110,6 +110,7 @@ $qs = ['desde' => $desde, 'hasta' => $hasta];
     <a class="btn ghost" href="<?= url('reportes', $qs + ['exportar' => 'cobros']) ?>">Cobros</a>
     <a class="btn ghost" href="<?= url('reportes', $qs + ['exportar' => 'cotizaciones']) ?>">Cotizaciones</a>
     <a class="btn ghost" href="<?= url('reportes', ['exportar' => 'clientes']) ?>">Clientes (todos)</a>
+    <a class="btn ghost" href="<?= url('inventario', ['exportar' => 'inventario']) ?>">Inventario actual</a>
   </div>
 </div>
 <?php layout_fin();

@@ -66,7 +66,7 @@ layout_inicio('Usuarios', 'usuarios');
     <label>Nombre <input name="nombre" required maxlength="80" placeholder="Ej. Ana López"></label>
     <label>Usuario para entrar <input name="usuario" required maxlength="40" autocapitalize="none" placeholder="ej. ana"></label>
     <label>Contraseña (mínimo 10 caracteres) <input name="clave" type="password" required minlength="10" autocomplete="new-password"></label>
-    <label>Rol <select name="rol"><option value="vendedor">Vendedor: ventas, cobros, cotizaciones, agenda y clientes</option><option value="admin">Administrador: todo, además de usuarios y eliminar registros</option></select></label>
+    <label>Rol <select name="rol"><option value="vendedor">Vendedor: ventas, cobros, cotizaciones, agenda, clientes e inventario</option><option value="admin">Administrador: todo, además de usuarios y eliminar registros</option></select></label>
   </div>
   <div class="acts end"><button class="btn">Crear usuario</button></div>
 </form>

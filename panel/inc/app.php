@@ -4,7 +4,8 @@ declare(strict_types=1);
 date_default_timezone_set('America/Mexico_City');
 mb_internal_encoding('UTF-8');
 
-const PANEL_VERSION = '1.0';
+const PANEL_VERSION = '1.1';
+const SCHEMA_VERSION = 2;
 
 /* ---------- configuración (fuera del repositorio) ---------- */
 function config(): array {
@@ -43,10 +44,12 @@ function db(): PDO {
 }
 
 function instalar_esquema(PDO $pdo): void {
-  try { $pdo->query("SELECT valor FROM ajustes WHERE clave='schema'")->fetch(); return; }
+  try { if ((int)$pdo->query("SELECT valor FROM ajustes WHERE clave='schema'")->fetchColumn() >= SCHEMA_VERSION) return; }
   catch (PDOException $e) { /* primera vez: se crean las tablas */ }
+  // Todas las sentencias son "IF NOT EXISTS": correrlas de nuevo agrega solo lo nuevo
   $sql = file_get_contents(__DIR__ . '/schema.sql');
   foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) $pdo->exec($stmt);
+  $pdo->prepare("UPDATE ajustes SET valor=? WHERE clave='schema'")->execute([(string)SCHEMA_VERSION]);
 }
 
 function q(string $sql, array $p = []): PDOStatement {
@@ -161,7 +164,56 @@ function catalogo_opciones(): array {
     if (!$p['variantes']) $o[] = ['id' => $p['id'], 'd' => $p['nombre'], 'p' => $p['precio']];
     foreach ($p['variantes'] as $v) $o[] = ['id' => $p['id'], 'd' => $p['nombre'] . ' (' . $v['nombre'] . ')', 'p' => $v['precio']];
   }
+  // productos que solo existen en el inventario (no están en la web)
+  foreach (q('SELECT descripcion, precio FROM inventario WHERE producto_web_id IS NULL AND activo=1 ORDER BY descripcion')->fetchAll() as $r) $o[] = ['id' => '', 'd' => $r['descripcion'], 'p' => (float)$r['precio']];
   return $o;
+}
+
+/* ---------- inventario (regalo de APARECE: módulo del plan Negocio) ---------- */
+// Da de alta en el inventario los productos y variantes nuevos del catálogo de la web
+function inventario_sync(): void {
+  $hay = [];
+  foreach (q('SELECT producto_web_id, descripcion FROM inventario WHERE producto_web_id IS NOT NULL')->fetchAll() as $r) $hay[$r['producto_web_id'] . '|' . $r['descripcion']] = 1;
+  $cat = catalogo();
+  foreach (catalogo_opciones() as $o) {
+    if ($o['id'] === '' || isset($hay[$o['id'] . '|' . mb_substr($o['d'], 0, 190)])) continue;
+    q('INSERT IGNORE INTO inventario (producto_web_id, descripcion, categoria, precio, actualizado) VALUES (?,?,?,?,?)', [$o['id'], mb_substr($o['d'], 0, 190), $cat[$o['id']]['cat'] ?? null, $o['p'], ahora()]);
+  }
+}
+function inventario_de_partida(array $pa): ?int {
+  $id = $pa['producto_web_id'] === null
+    ? qv('SELECT id FROM inventario WHERE producto_web_id IS NULL AND descripcion=?', [mb_substr($pa['descripcion'], 0, 190)])
+    : qv('SELECT id FROM inventario WHERE producto_web_id=? AND descripcion=?', [$pa['producto_web_id'], mb_substr($pa['descripcion'], 0, 190)]);
+  return $id ? (int)$id : null;
+}
+function mover_stock(int $inv, int $cant, string $tipo, ?string $nota = null, ?int $venta = null): int {
+  q('UPDATE inventario SET stock=COALESCE(stock,0)+?, actualizado=? WHERE id=?', [$cant, ahora(), $inv]);
+  $final = (int)qv('SELECT stock FROM inventario WHERE id=?', [$inv]);
+  q('INSERT INTO movimientos (inventario_id, tipo, cantidad, stock_final, nota, venta_id, usuario_id, creado) VALUES (?,?,?,?,?,?,?,?)', [$inv, $tipo, $cant, $final, $nota, $venta, usuario()['id'] ?? null, ahora()]);
+  return $final;
+}
+// Deja el inventario de acuerdo con la venta: descuenta si está confirmada y regresa si se cancela o cambia.
+// Devuelve los productos que quedaron en negativo.
+function venta_sincronizar_stock(int $venta_id): array {
+  inventario_sync();
+  $v = q1('SELECT estado FROM ventas WHERE id=?', [$venta_id]);
+  $quiere = [];
+  if ($v && $v['estado'] === 'confirmada') foreach (partidas('venta', $venta_id) as $pa) {
+    if ($inv = inventario_de_partida($pa)) $quiere[$inv] = ($quiere[$inv] ?? 0) + (int)round((float)$pa['cantidad']);
+  }
+  $aplicado = [];
+  foreach (q("SELECT inventario_id, -SUM(cantidad) n FROM movimientos WHERE venta_id=? AND tipo IN ('venta','devolucion') GROUP BY inventario_id", [$venta_id])->fetchAll() as $r) $aplicado[(int)$r['inventario_id']] = (int)$r['n'];
+  $neg = [];
+  foreach (array_unique(array_merge(array_keys($quiere), array_keys($aplicado))) as $inv) {
+    $diff = ($quiere[$inv] ?? 0) - ($aplicado[$inv] ?? 0);
+    if ($diff === 0) continue;
+    $final = mover_stock($inv, -$diff, $diff > 0 ? 'venta' : 'devolucion', folio('V', $venta_id), $venta_id);
+    if ($final < 0) $neg[] = qv('SELECT descripcion FROM inventario WHERE id=?', [$inv]);
+  }
+  return $neg;
+}
+function faltantes_count(): int {
+  return (int)qv('SELECT COUNT(*) FROM inventario WHERE activo=1 AND stock IS NOT NULL AND stock <= minimo');
 }
 
 /* ---------- partidas (renglones de venta o cotización) ---------- */
@@ -253,6 +305,7 @@ function layout_inicio(string $titulo, string $activo = ''): void {
     'cotizaciones' => ['Cotizaciones', 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8z', 0],
     'agenda' => ['Agenda y citas', 'M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m0 16H5V9h14z', $citas],
     'clientes' => ['Clientes', 'M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1 1.2.8 2 1.9 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5', 0],
+    'inventario' => ['Inventario', 'M20 2H4a2 2 0 0 0-2 2v3a2 2 0 0 0 1 1.7V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.7A2 2 0 0 0 22 7V4a2 2 0 0 0-2-2m-5 12H9v-2h6zm5-7H4V4h16z', $u ? faltantes_count() : 0],
     'reportes' => ['Reportes', 'M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z', 0],
   ];
   if (es_admin()) $menu['usuarios'] = ['Usuarios', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8m0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4', 0];

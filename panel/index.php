@@ -6,7 +6,7 @@ db();
 
 $p = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? 'resumen'));
 $publicas = ['entrar', 'instalar'];
-$modulos = ['resumen', 'ventas', 'venta', 'cotizaciones', 'cotizacion', 'agenda', 'clientes', 'cliente', 'reportes', 'usuarios', 'cuenta', 'salir'];
+$modulos = ['resumen', 'ventas', 'venta', 'cotizaciones', 'cotizacion', 'agenda', 'clientes', 'cliente', 'inventario', 'reportes', 'usuarios', 'cuenta', 'salir'];
 
 $sin_usuarios = (int)qv('SELECT COUNT(*) FROM usuarios') === 0;
 if ($sin_usuarios && $p !== 'instalar') redirect('instalar');

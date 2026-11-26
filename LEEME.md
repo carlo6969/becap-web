@@ -9,7 +9,7 @@ Sitio estático publicado en Hostinger desde la rama `main`.
 
 ## Panel de control (`panel/`)
 
-Panel del plan Esencial en PHP + MySQL: resumen, ventas y cobros, cotizaciones, agenda y citas, clientes, reportes con descarga a Excel y usuarios (hasta 2).
+Panel del plan Esencial en PHP + MySQL: resumen, ventas y cobros, cotizaciones, agenda y citas, clientes, reportes con descarga a Excel y usuarios (hasta 2). Incluye de regalo el inventario con aviso de faltantes (módulo del plan Negocio): las ventas confirmadas descuentan existencias y las canceladas las regresan.
 
 - Entrada: `/panel/` (enlace "Equipo" al final del menú de la web).
 - Configuración: `panel/_privado/config.php` vive SOLO en el servidor (está en `.gitignore`). Plantilla: `panel/_privado/config.example.php`.

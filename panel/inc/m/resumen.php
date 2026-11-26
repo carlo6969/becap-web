@@ -7,6 +7,9 @@ $cm = (float)qv('SELECT COALESCE(SUM(c.monto),0) FROM cobros c JOIN ventas v ON 
 $por_cobrar = (float)qv("SELECT COALESCE(SUM(total-pagado),0) FROM ventas WHERE estado='confirmada' AND total-pagado > 0.009");
 $pend = q("SELECT v.*, c.nombre cliente FROM ventas v LEFT JOIN clientes c ON c.id=v.cliente_id WHERE v.estado='por_confirmar' ORDER BY v.fecha DESC LIMIT 8")->fetchAll();
 $citas = q("SELECT ci.*, c.nombre cliente, c.telefono FROM citas ci LEFT JOIN clientes c ON c.id=ci.cliente_id WHERE ci.fecha BETWEEN ? AND ? AND ci.estado IN ('pendiente','confirmada') ORDER BY ci.fecha, ci.hora LIMIT 8", [$hoy, date('Y-m-d', strtotime('+6 days'))])->fetchAll();
+inventario_sync();
+$bajos = q('SELECT id, descripcion, stock, minimo FROM inventario WHERE activo=1 AND stock IS NOT NULL AND stock <= minimo ORDER BY stock, descripcion LIMIT 8')->fetchAll();
+$sin_capturar = (int)qv('SELECT COUNT(*) FROM inventario WHERE activo=1 AND stock IS NULL');
 $cots = (int)qv("SELECT COUNT(*) FROM cotizaciones WHERE estado IN ('borrador','enviada')");
 
 // ventas de los últimos 14 días
@@ -55,5 +58,13 @@ $h = (int)date('G');
     </ul><?php endif; ?>
     <p class="sm"><a href="<?= url('cotizaciones') ?>"><?= $cots ?> <?= $cots == 1 ? 'cotización abierta' : 'cotizaciones abiertas' ?> →</a></p>
   </div>
+</div>
+<div class="card mt">
+  <h3>Aviso de faltantes <?php if ($bajos): ?><b class="badge"><?= faltantes_count() ?></b><?php endif; ?></h3>
+  <?php if ($bajos): ?><ul class="list low">
+    <?php foreach ($bajos as $b): ?><li><a href="<?= url('inventario', ['ver' => 'faltantes']) ?>"><b><?= e($b['descripcion']) ?></b><span>mínimo <?= (int)$b['minimo'] ?></span><em><?= (int)$b['stock'] <= 0 ? 'Agotado' : 'Quedan ' . (int)$b['stock'] ?></em></a></li><?php endforeach; ?>
+  </ul>
+  <?php elseif ($sin_capturar): ?><p class="muted">Faltan <?= $sin_capturar ?> productos por capturar en el inventario. <a href="<?= url('inventario', ['ver' => 'sin']) ?>">Capturar existencias →</a></p>
+  <?php else: ?><p class="muted">Todo el inventario está arriba del mínimo.</p><?php endif; ?>
 </div>
 <?php layout_fin();

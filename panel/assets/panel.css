@@ -119,6 +119,12 @@ textarea{resize:vertical}
 .row-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0 8px}
 .row-form label{flex:1 1 150px}
 
+/* inventario */
+.tbl input.num{width:96px;text-align:right;padding:8px 10px}
+.tbl input.num.sm{width:72px}
+.sticky-save{position:sticky;bottom:0;background:linear-gradient(transparent,var(--paper) 30%);padding:18px 0 12px;margin-top:-6px;z-index:5}
+.low li a em{color:var(--red)}
+
 /* gráficas */
 .bars{display:flex;align-items:flex-end;gap:6px;height:160px}
 .bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;min-width:0}
