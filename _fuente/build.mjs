@@ -18,6 +18,7 @@ ${css}
 <body>
 ${body}
 <script src="productos.js"></script>
+<script src="conexion-panel.js" defer></script>
 <script>
 ${store}
 </script>
