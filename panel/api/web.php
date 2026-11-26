@@ -33,12 +33,14 @@ if ($tipo === 'pedido') {
   $items = [];
   foreach (array_slice((array)($d['items'] ?? []), 0, 30) as $it) {
     $pid = (int)($it['id'] ?? -1);
-    $vt = txt($it['vt'] ?? '', 80);
+    $vt = txt($it['vt'] ?? '', 120);
     $cant = max(1, min(99, (int)($it['q'] ?? 1)));
-    if (!isset($cat[$pid])) continue;                // solo productos que existen en el catálogo
-    $p = $cat[$pid]; $precio = $p['precio'];
-    foreach ($p['variantes'] as $v) if ($v['nombre'] === $vt) $precio = $v['precio'];
-    $items[] = ['producto_web_id' => $pid, 'descripcion' => mb_substr($p['nombre'] . ($vt && $vt !== 'Default Title' ? " ($vt)" : ''), 0, 200), 'cantidad' => $cant, 'precio' => $precio, 'importe' => round($cant * $precio, 2)];
+    if (!isset($cat[$pid]) || !$cat[$pid]['publicado']) continue;   // solo productos publicados en la web
+    $var = null;
+    foreach ($cat[$pid]['variantes'] as $v) if ((string)$v['variante'] === $vt || ($vt === '' && $v['variante'] === null)) $var = $v;
+    if (!$var) $var = $cat[$pid]['variantes'][0] ?? null;
+    if (!$var) continue;
+    $items[] = ['producto_web_id' => $pid, 'inventario_id' => (int)$var['id'], 'descripcion' => mb_substr($var['descripcion'], 0, 200), 'cantidad' => $cant, 'precio' => (float)$var['precio'], 'importe' => round($cant * (float)$var['precio'], 2)];
   }
   if (!$items) responder(422, ['ok' => false]);
   $entrega = ($d['entrega'] ?? '') === 'envio' ? 'envio' : 'tienda';

@@ -1,11 +1,13 @@
 (function(){
 'use strict';
-const P = window.__P;
+const PX = window.__P;                              // índice = id del producto; los ocultos traen x:1
+const P = PX.filter(p => p && !p.x);                // productos visibles en la tienda
+const vis = id => (PX[id] && !PX[id].x) ? PX[id] : P[0];
 const WA = '527712884753';
 const $ = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => [...el.querySelectorAll(s)];
 const money = n => '$' + Number(n).toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-const img = (p, k=0) => `img/p/${p.id}-${Math.min(k, p.n-1)}.webp`;
+const img = (p, k=0) => p.im ? (p.im[Math.min(k, p.im.length-1)] || 'img/logo.webp') : `img/p/${p.id}-${Math.min(k, p.n-1)}.webp`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store = { get(k, d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } }, set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} } };
 const ESTADOS = ["Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México", "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"];
@@ -58,13 +60,13 @@ function card(p){
 }
 
 /* ---------- hero card, cats, best, mega ---------- */
-const heroP = P[69];
+const heroP = vis(69);
 $('#heroCard').innerHTML = `<img src="${img(heroP)}" alt=""><div><small>Destacado · New Era</small><h4>${esc(heroP.t)}</h4><b>${money(heroP.p)}</b></div><span class="plus"><svg class="ic"><use href="#i-plus"/></svg></span>`;
 $('#heroCard').onclick = () => openProduct(heroP.id);
 
-$('#cats').innerHTML = CATS.map(c => `<button class="cat" data-cat="${c.k}"><img src="${img(P[c.img])}" alt="" loading="lazy"><span class="arr"><svg class="ic" style="width:16px"><use href="#i-arrow"/></svg></span><div><h3>${c.t}</h3><small>${P.filter(p=>p.c===c.k).length} productos · ${c.s}</small></div></button>`).join('');
+$('#cats').innerHTML = CATS.map(c => `<button class="cat" data-cat="${c.k}"><img src="${img(vis(c.img))}" alt="" loading="lazy"><span class="arr"><svg class="ic" style="width:16px"><use href="#i-arrow"/></svg></span><div><h3>${c.t}</h3><small>${P.filter(p=>p.c===c.k).length} productos · ${c.s}</small></div></button>`).join('');
 
-const best = P.filter(p => p.bs).sort((a,b)=>b.a-a.a).concat([P[69],P[74],P[65],P[30]]);
+const best = P.filter(p => p.bs).sort((a,b)=>b.a-a.a).concat([69,74,65,30].map(vis)).filter((p,i,a) => a.indexOf(p)===i);
 $('#bestScroller').innerHTML = best.map(card).join('');
 const sc = $('#bestScroller');
 $('#bsPrev').onclick = () => sc.scrollBy({left: -sc.clientWidth*.8, behavior:'smooth'});
@@ -72,7 +74,7 @@ $('#bsNext').onclick = () => sc.scrollBy({left: sc.clientWidth*.8, behavior:'smo
 
 $('#megaCats').innerHTML = `<li><button data-cat="all">Ver todo <small>${P.length}</small></button></li>` + CATS.map(c => `<li><button data-cat="${c.k}">${c.t} <small>${P.filter(p=>p.c===c.k).length}</small></button></li>`).join('');
 $('#megaBrands').innerHTML = BRANDS.filter(b=>b!=='Be Cap Selección').slice(0,8).map(b => `<li><button data-brand="${esc(b)}">${esc(b)} <small>${P.filter(p=>p.b===b).length}</small></button></li>`).join('');
-const fp = P[61];
+const fp = vis(61);
 $('#megaFeat').innerHTML = `<img src="${img(fp)}" alt=""><div>Gorras de diseñador<br><span style="color:var(--muted);font-weight:700">Kiblo Caps desde ${money(499)}</span></div>`;
 $('#megaFeat').onclick = () => { setCat('disenador'); closeMega(); };
 $('#fCatsFoot').innerHTML = CATS.map(c => `<li><button data-cat="${c.k}">${c.t}</button></li>`).join('');
@@ -87,7 +89,7 @@ mw.addEventListener('mouseenter', openMega);
 mw.addEventListener('mouseleave', () => { mt = setTimeout(closeMega, 160); });
 $('#megaBtn').onclick = () => mw.classList.contains('open') ? closeMega() : openMega();
 
-const look = [P[19], P[20], P[11], P[2]];
+const look = [19,20,11,2].map(vis);
 $('#lookMinis').innerHTML = look.map(p => `<div class="mini" data-id="${p.id}"><img src="${img(p)}" alt=""><div><b>${esc(p.t)}</b><small>${money(p.p)}</small></div></div>`).join('');
 
 /* ---------- shop filters ---------- */
@@ -146,7 +148,7 @@ function resetAll(){ Object.assign(F,{cat:'all',max:1399,avail:false,sale:false,
 document.addEventListener('click', e => {
   const t = e.target.closest('button, .card, .mini, a[data-nav]');
   if(!t) return;
-  if(t.dataset.qa){ e.stopPropagation(); const p = P[+t.dataset.qa]; p.o.length ? openProduct(p.id) : addToCart(p.id, '', 1); return; }
+  if(t.dataset.qa){ e.stopPropagation(); const p = PX[+t.dataset.qa]; p.o.length ? openProduct(p.id) : addToCart(p.id, '', 1); return; }
   if(t.dataset.fcat){ F.cat = t.dataset.fcat; update(); return; }
   if(t.dataset.cat){ setCat(t.dataset.cat); closeMega(); closeAll(); return; }
   if(t.dataset.brand){ setBrand(t.dataset.brand); closeMega(); return; }
@@ -173,7 +175,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeAll(); cl
 /* ---------- product modal ---------- */
 let cur = null;
 function openProduct(id){
-  const p = P[id]; cur = {p, sel: p.o.map(() => null), qty:1, k:0};
+  const p = PX[id]; cur = {p, sel: p.o.map(() => null), qty:1, k:0};
   if(p.o.length){ const fv = p.v.find(v=>v[2]) || p.v[0]; fv[0].split(' / ').forEach((x,i)=>cur.sel[i]=x); }
   renderPM(); openLayer($('#pm'));
 }
@@ -211,13 +213,13 @@ function renderPM(){
 }
 
 /* ---------- cart ---------- */
-let cart = store.get('becap_cart', []);
+let cart = store.get('becap_cart', []).filter(c => PX[c.id] && !PX[c.id].x);
 let coMode = false, delivery = 'tienda';
 function saveCart(){ store.set('becap_cart', cart); renderCart(); }
 function cartCount(){ return cart.reduce((a,c)=>a+c.q,0); }
 function cartTotal(){ return cart.reduce((a,c)=>a+c.pr*c.q,0); }
 function addToCart(id, vt, q){
-  const p = P[id]; const v = vt ? p.v.find(x=>x[0]===vt) : null; const pr = v ? v[1] : p.p;
+  const p = PX[id]; const v = vt ? p.v.find(x=>x[0]===vt) : null; const pr = v ? v[1] : p.p;
   const ex = cart.find(c => c.id===id && c.vt===vt);
   ex ? ex.q = Math.min(9, ex.q+q) : cart.push({id, vt, q, pr});
   saveCart(); toast(p, vt);
@@ -236,7 +238,7 @@ function renderCart(){
   if(!coMode){
     $('#cartTitle').textContent = `Tu carrito (${n})`;
     $('#cartBody').innerHTML = `<div class="ship ${left?'':'ok'}">${left?`Te faltan <b>${money(left)}</b> para envío gratis`:'¡Tu pedido tiene envío gratis! 🎉'}<div class="bar"><i style="width:${Math.min(100,tot/10)}%"></i></div><p class="ship-note">${left?'Envío a domicilio con costo extra por la guía de envío. ':''}Entrega a domicilio en 2 a 3 días.</p></div>` +
-      cart.map((c,i) => { const p = P[c.id]; return `<div class="citem"><img src="${img(p)}" alt=""><div><h5>${esc(p.t)}</h5><small>${c.vt?esc(c.vt)+' · ':''}${money(c.pr)}</small><div class="stepper"><button data-cq="${i}" data-d="-1" aria-label="Menos">−</button><span>${c.q}</span><button data-cq="${i}" data-d="1" aria-label="Más">+</button></div></div><div><b>${money(c.pr*c.q)}</b><button class="rm" data-crm="${i}">Quitar</button></div></div>`; }).join('');
+      cart.map((c,i) => { const p = PX[c.id]; return `<div class="citem"><img src="${img(p)}" alt=""><div><h5>${esc(p.t)}</h5><small>${c.vt?esc(c.vt)+' · ':''}${money(c.pr)}</small><div class="stepper"><button data-cq="${i}" data-d="-1" aria-label="Menos">−</button><span>${c.q}</span><button data-cq="${i}" data-d="1" aria-label="Más">+</button></div></div><div><b>${money(c.pr*c.q)}</b><button class="rm" data-crm="${i}">Quitar</button></div></div>`; }).join('');
     $('#cartFoot').innerHTML = `<div class="tot"><span>Subtotal</span><span>${money(tot)} MXN</span></div><button class="btn btn-ink" id="goCO">Finalizar pedido <svg class="ic"><use href="#i-arrow"/></svg></button><button class="btn btn-ghost btn-sm" data-close-cart>Seguir comprando</button>`;
   } else {
     $('#cartTitle').textContent = 'Datos de tu pedido';
@@ -255,7 +257,7 @@ function renderCart(){
         <div class="f"><label for="ad_ref">Referencias para el repartidor</label><input id="ad_ref" placeholder="Entre calles, color de fachada, portón…" value="${esc(AD.ref||'')}"></div>
       </div>`:''}
       <div class="f"><label for="coNote">Notas (opcional)</label><textarea id="coNote" placeholder="Talla, color alterno, horario para recoger…"></textarea></div>
-      <div class="ship"><b>Resumen</b><br>${cart.map(c=>`${c.q} × ${esc(P[c.id].t)}${c.vt?' ('+esc(c.vt)+')':''}`).join('<br>')}</div>
+      <div class="ship"><b>Resumen</b><br>${cart.map(c=>`${c.q} × ${esc(PX[c.id].t)}${c.vt?' ('+esc(c.vt)+')':''}`).join('<br>')}</div>
     </div>`;
     $('#cartFoot').innerHTML = `<div class="tot"><span>Total productos</span><span>${money(tot)} MXN</span></div>${delivery==='envio'?`<div class="tot-ship"><span>Envío a domicilio</span><span>${tot>=1000?'Gratis':'+ costo de guía'}</span></div>`:''}<button class="btn" style="background:#25d366;color:#fff" id="sendWA"><svg class="ic"><use href="#i-wa"/></svg> Enviar pedido por WhatsApp</button><button class="btn btn-ghost btn-sm" id="backCart">Volver al carrito</button><p class="demo-note">Te confirmamos disponibilidad, costo de envío y forma de pago por WhatsApp.</p>`;
   }
@@ -282,7 +284,7 @@ $('#cart').addEventListener('click', e => {
       if(bad.length){ bad.forEach(k => document.getElementById('ad_'+k).classList.add('bad')); const f = document.getElementById('ad_'+bad[0]); f.focus(); f.scrollIntoView({block:'center', behavior:'smooth'}); return; }
       addr = `\n\n📦 Dirección de envío:\n${AD.calle} ${AD.ext}${AD.int?' Int. '+AD.int:''}\nCol. ${AD.col}, C.P. ${AD.cp}\n${AD.mun}, ${AD.edo}${AD.ref?'\nReferencias: '+AD.ref:''}\nTeléfono: ${AD.tel}`;
     }
-    const msg = `¡Hola Be Cap! 👋 Quiero hacer este pedido desde su página web:\n\n${cart.map(c=>`• ${c.q} × ${P[c.id].t}${c.vt?' ('+c.vt+')':''} – ${money(c.pr*c.q)}`).join('\n')}\n\nTotal productos: ${money(tot)} MXN\nEntrega: ${delivery==='tienda'?'Recoger en tienda':'Envío a domicilio'+(tot>=1000?' (envío gratis)':' (+ costo de guía de envío)')+'\nTiempo de entrega: 2 a 3 días'}\nNombre: ${nm}${addr}${note?'\nNotas: '+note:''}\n\n¿Me confirman disponibilidad y forma de pago?`;
+    const msg = `¡Hola Be Cap! 👋 Quiero hacer este pedido desde su página web:\n\n${cart.map(c=>`• ${c.q} × ${PX[c.id].t}${c.vt?' ('+c.vt+')':''} – ${money(c.pr*c.q)}`).join('\n')}\n\nTotal productos: ${money(tot)} MXN\nEntrega: ${delivery==='tienda'?'Recoger en tienda':'Envío a domicilio'+(tot>=1000?' (envío gratis)':' (+ costo de guía de envío)')+'\nTiempo de entrega: 2 a 3 días'}\nNombre: ${nm}${addr}${note?'\nNotas: '+note:''}\n\n¿Me confirman disponibilidad y forma de pago?`;
     window.open(`https://wa.me/${WA}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   }
 });
@@ -348,7 +350,7 @@ $('#aSend').onclick = () => {
   const nm = $('#aName').value.trim(); if(!nm){ $('#aName').focus(); return; }
   if(slot===null){ $('#slots').animate([{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'none'}],{duration:300}); return; }
   const [y,m,dd] = aDate.value.split('-').map(Number); const dt = new Date(y,m-1,dd);
-  const want = $('#aWant').value.trim() || cart.map(c=>P[c.id].t).join(', ');
+  const want = $('#aWant').value.trim() || cart.map(c=>PX[c.id].t).join(', ');
   const msg = `¡Hola Be Cap! Quiero agendar una visita a la tienda:\n\nNombre: ${nm}\nDía: ${DN[dt.getDay()]} ${dd}/${m}/${y}\nHora: ${fmt(slot)}\n${want?'Quiero probarme: '+want:''}`;
   window.open(`https://wa.me/${WA}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
 };

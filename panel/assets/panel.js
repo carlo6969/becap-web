@@ -25,6 +25,33 @@
   var es = $('#entregaSel'), eb = $('.envio-box');
   if (es && eb){ var te = function(){ eb.classList.toggle('hidden', es.value !== 'envio'); }; es.addEventListener('change', te); te(); }
 
+  // editor de producto: variantes y fotos
+  var pf = $('#prodForm');
+  if (pf){
+    var op1 = $('#op1'), op2 = $('#op2'), vars = $('#vars'), n = 1000;
+    var tog = function(){ var con = (op1.value.trim() || op2.value.trim()) !== ''; $('#conVar').classList.toggle('hidden', !con); $('#sinVar').classList.toggle('hidden', con); };
+    op1.addEventListener('input', tog); op2.addEventListener('input', tog);
+    var fila = function(nombre){
+      var i = n++, d = document.createElement('div'); d.className = 'vr';
+      d.innerHTML = '<input type="hidden" name="v_id[' + i + ']" value=""><input name="v_nombre[' + i + ']" required><input name="v_precio[' + i + ']" type="number" min="0" step="0.01" placeholder="Igual al producto"><input name="v_stock[' + i + ']" type="number" step="1" placeholder="Inicial"><label class="check"><input type="checkbox" name="v_disp[]" value="' + i + '" checked></label><button type="button" class="x" data-quitar-v aria-label="Quitar variante">×</button>';
+      d.querySelector('[name^=v_nombre]').value = nombre || '';
+      vars.appendChild(d); return d;
+    };
+    $('#addVar').onclick = function(){ fila('').querySelector('[name^=v_nombre]').focus(); };
+    $('#genBtn').onclick = function(){
+      var a = $('#gen1').value.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+      var b = $('#gen2').value.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+      var ya = $$('[name^=v_nombre]', vars).map(function(i){ return i.value; });
+      (a.length ? a : ['']).forEach(function(x){ (b.length ? b : ['']).forEach(function(y){ var nm = [x, y].filter(Boolean).join(' / '); if (nm && ya.indexOf(nm) < 0) fila(nm); }); });
+    };
+    vars.addEventListener('click', function(e){ if (e.target.matches('[data-quitar-v]')) vars.removeChild(e.target.closest('.vr')); });
+    var fin = $('#fotosIn'), prev = $('#fotosPrev');
+    if (fin) fin.addEventListener('change', function(){
+      prev.innerHTML = '';
+      Array.prototype.forEach.call(fin.files, function(f){ var fig = document.createElement('figure'), im = document.createElement('img'); im.src = URL.createObjectURL(f); im.alt = ''; fig.appendChild(im); var c = document.createElement('figcaption'); c.textContent = 'Nueva'; fig.appendChild(c); prev.appendChild(fig); });
+    });
+  }
+
   // editor de partidas
   var items = $('#items');
   if (!items) return;
@@ -43,6 +70,7 @@
     if (e.target.name === 'it_d[]'){
       var r = e.target.closest('.it'), o = porDesc[e.target.value];
       r.querySelector('[name="it_id[]"]').value = o ? o.id : '';
+      r.querySelector('[name="it_inv[]"]').value = o ? o.inv : '';
       if (o) r.querySelector('[name="it_p[]"]').value = o.p;
     }
     calc();

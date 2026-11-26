@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS partidas (
   doc ENUM('venta','cotizacion') NOT NULL,
   doc_id INT NOT NULL,
   producto_web_id INT NULL,
+  inventario_id INT NULL,
   descripcion VARCHAR(200) NOT NULL,
   cantidad DECIMAL(10,2) NOT NULL DEFAULT 1,
   precio DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -112,17 +113,39 @@ CREATE TABLE IF NOT EXISTS cobros (
   INDEX (venta_id), INDEX (fecha)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS productos (
+  id INT PRIMARY KEY,
+  slug VARCHAR(160) NOT NULL DEFAULT '',
+  nombre VARCHAR(160) NOT NULL,
+  categoria VARCHAR(40) NOT NULL DEFAULT 'vintage',
+  marca VARCHAR(80) NOT NULL DEFAULT 'Be Cap Selección',
+  ajuste VARCHAR(40) NOT NULL DEFAULT '',
+  precio DECIMAL(10,2) NOT NULL DEFAULT 0,
+  precio_antes DECIMAL(10,2) NOT NULL DEFAULT 0,
+  descripcion TEXT NULL,
+  opciones VARCHAR(200) NOT NULL DEFAULT '[]',
+  imagenes TEXT NULL,
+  publicado TINYINT(1) NOT NULL DEFAULT 1,
+  nuevo TINYINT(1) NOT NULL DEFAULT 0,
+  mas_vendido TINYINT(1) NOT NULL DEFAULT 0,
+  eliminado TINYINT(1) NOT NULL DEFAULT 0,
+  creado DATETIME NOT NULL,
+  actualizado DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS inventario (
   id INT AUTO_INCREMENT PRIMARY KEY,
   producto_web_id INT NULL,
+  variante VARCHAR(120) NULL,
   descripcion VARCHAR(190) NOT NULL,
   categoria VARCHAR(40) NULL,
   precio DECIMAL(10,2) NOT NULL DEFAULT 0,
   stock INT NULL,
   minimo INT NOT NULL DEFAULT 1,
+  disponible TINYINT(1) NOT NULL DEFAULT 1,
   activo TINYINT(1) NOT NULL DEFAULT 1,
   actualizado DATETIME NOT NULL,
-  UNIQUE KEY prod_desc (producto_web_id, descripcion)
+  INDEX (producto_web_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS movimientos (

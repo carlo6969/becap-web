@@ -4,8 +4,8 @@ declare(strict_types=1);
 date_default_timezone_set('America/Mexico_City');
 mb_internal_encoding('UTF-8');
 
-const PANEL_VERSION = '1.1';
-const SCHEMA_VERSION = 2;
+const PANEL_VERSION = '1.2';
+const SCHEMA_VERSION = 3;
 
 /* ---------- configuración (fuera del repositorio) ---------- */
 function config(): array {
@@ -141,52 +141,76 @@ function es_post(): bool {
   return true;
 }
 
-/* ---------- catálogo de la web (productos.js) ---------- */
+/* ---------- catálogo de productos (fuente: base de datos; la web lo lee de aquí) ---------- */
+const CATS = ['vintage' => 'Vintage', 'originales' => 'Originales', 'disenador' => 'Diseñador', 'bucket' => 'Bucket', 'ropa' => 'Ropa', 'complementos' => 'Complementos'];
+const AJUSTES = ['' => 'Sin especificar', 'Snapback' => 'Snapback', 'Strapback' => 'Strapback', 'Ajustable' => 'Ajustable', 'Flex / cerrada' => 'Flex / cerrada'];
+
+// Primera vez: importa los productos que ya estaban en la web (productos.js) con sus fotos y variantes
+function importar_catalogo_inicial(): void {
+  if ((int)qv('SELECT COUNT(*) FROM productos') > 0) return;
+  $f = __DIR__ . '/../../productos.js';
+  if (!is_file($f)) return;
+  $js = file_get_contents($f);
+  $data = json_decode(rtrim(substr($js, (int)strpos($js, '[')), "; \n\r\t"), true);
+  if (!is_array($data)) return;
+  $pdo = db(); $pdo->beginTransaction();
+  foreach ($data as $p) {
+    $id = (int)$p['id'];
+    $imgs = []; for ($k = 0; $k < (int)($p['n'] ?? 0); $k++) $imgs[] = "img/p/$id-$k.webp";
+    q('INSERT INTO productos (id, slug, nombre, categoria, marca, ajuste, precio, precio_antes, descripcion, opciones, imagenes, publicado, nuevo, mas_vendido, creado, actualizado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [$id, (string)$p['h'], (string)$p['t'], (string)$p['c'], (string)$p['b'], (string)$p['f'], (float)$p['p'], (float)$p['cp'], (string)$p['d'], json_encode($p['o'] ?? [], JSON_UNESCAPED_UNICODE), json_encode($imgs), 1, (int)!empty($p['new']), (int)!empty($p['bs']), ahora(), ahora()]);
+    if (!empty($p['v'])) foreach ($p['v'] as $v) inventario_crear($id, (string)$v[0], (string)$p['t'], (string)$p['c'], (float)$v[1], (int)!empty($v[2]));
+    else inventario_crear($id, null, (string)$p['t'], (string)$p['c'], (float)$p['p'], (int)!empty($p['a']));
+  }
+  $pdo->commit();
+}
+function inventario_crear(int $pid, ?string $variante, string $nombre, string $cat, float $precio, int $disp = 1): int {
+  q('INSERT INTO inventario (producto_web_id, variante, descripcion, categoria, precio, disponible, actualizado) VALUES (?,?,?,?,?,?,?)',
+    [$pid, $variante, mb_substr($nombre . ($variante ? " ($variante)" : ''), 0, 190), $cat, $precio, $disp, ahora()]);
+  return (int)db()->lastInsertId();
+}
+function imagenes(array $p): array { $a = json_decode((string)($p['imagenes'] ?? '[]'), true); return is_array($a) ? $a : []; }
+function opciones(array $p): array { $a = json_decode((string)($p['opciones'] ?? '[]'), true); return is_array($a) ? $a : []; }
+function disponible(array $inv): bool { return $inv['stock'] === null ? (bool)$inv['disponible'] : ((int)$inv['stock'] > 0 && (bool)$inv['disponible']); }
+
+// Productos activos con sus variantes (id => producto)
 function catalogo(): array {
   static $cat = null;
   if ($cat !== null) return $cat;
+  importar_catalogo_inicial();
   $cat = [];
-  $f = __DIR__ . '/../../productos.js';
-  if (!is_file($f)) return $cat;
-  $js = file_get_contents($f);
-  $i = strpos($js, '[');
-  $data = json_decode(rtrim(substr($js, $i), "; \n\r\t"), true);
-  if (!is_array($data)) return $cat;
-  foreach ($data as $p) {
-    $cat[(int)$p['id']] = ['id' => (int)$p['id'], 'nombre' => (string)$p['t'], 'precio' => (float)$p['p'], 'cat' => (string)$p['c'], 'variantes' => array_map(fn($v) => ['nombre' => (string)$v[0], 'precio' => (float)$v[1]], $p['v'] ?? [])];
+  foreach (q('SELECT * FROM productos WHERE eliminado=0 ORDER BY id')->fetchAll() as $p) {
+    $p['variantes'] = []; $p['imgs'] = imagenes($p); $p['opts'] = opciones($p);
+    $cat[(int)$p['id']] = $p;
+  }
+  foreach (q('SELECT * FROM inventario WHERE activo=1 ORDER BY id')->fetchAll() as $i) {
+    if (isset($cat[(int)$i['producto_web_id']])) $cat[(int)$i['producto_web_id']]['variantes'][] = $i;
   }
   return $cat;
 }
 // Lista plana para el buscador de productos en ventas y cotizaciones
 function catalogo_opciones(): array {
   $o = [];
-  foreach (catalogo() as $p) {
-    if (!$p['variantes']) $o[] = ['id' => $p['id'], 'd' => $p['nombre'], 'p' => $p['precio']];
-    foreach ($p['variantes'] as $v) $o[] = ['id' => $p['id'], 'd' => $p['nombre'] . ' (' . $v['nombre'] . ')', 'p' => $v['precio']];
-  }
-  // productos que solo existen en el inventario (no están en la web)
-  foreach (q('SELECT descripcion, precio FROM inventario WHERE producto_web_id IS NULL AND activo=1 ORDER BY descripcion')->fetchAll() as $r) $o[] = ['id' => '', 'd' => $r['descripcion'], 'p' => (float)$r['precio']];
+  foreach (catalogo() as $p) foreach ($p['variantes'] as $v) $o[] = ['id' => (int)$p['id'], 'inv' => (int)$v['id'], 'd' => $v['descripcion'], 'p' => (float)$v['precio']];
   return $o;
 }
+function nuevo_producto_id(): int { return (int)qv('SELECT COALESCE(MAX(id),-1)+1 FROM productos'); }
+function img_panel(string $src): string { return preg_match('~^https?://~', $src) ? $src : '../' . ltrim($src, '/'); }
 
 /* ---------- inventario (regalo de APARECE: módulo del plan Negocio) ---------- */
-// Da de alta en el inventario los productos y variantes nuevos del catálogo de la web
-function inventario_sync(): void {
-  $hay = [];
-  foreach (q('SELECT producto_web_id, descripcion FROM inventario WHERE producto_web_id IS NOT NULL')->fetchAll() as $r) $hay[$r['producto_web_id'] . '|' . $r['descripcion']] = 1;
-  $cat = catalogo();
-  foreach (catalogo_opciones() as $o) {
-    if ($o['id'] === '' || isset($hay[$o['id'] . '|' . mb_substr($o['d'], 0, 190)])) continue;
-    q('INSERT IGNORE INTO inventario (producto_web_id, descripcion, categoria, precio, actualizado) VALUES (?,?,?,?,?)', [$o['id'], mb_substr($o['d'], 0, 190), $cat[$o['id']]['cat'] ?? null, $o['p'], ahora()]);
-  }
-}
+function inventario_sync(): void { importar_catalogo_inicial(); }
 function inventario_de_partida(array $pa): ?int {
-  $id = $pa['producto_web_id'] === null
-    ? qv('SELECT id FROM inventario WHERE producto_web_id IS NULL AND descripcion=?', [mb_substr($pa['descripcion'], 0, 190)])
-    : qv('SELECT id FROM inventario WHERE producto_web_id=? AND descripcion=?', [$pa['producto_web_id'], mb_substr($pa['descripcion'], 0, 190)]);
+  if (!empty($pa['inventario_id']) && qv('SELECT id FROM inventario WHERE id=?', [$pa['inventario_id']])) return (int)$pa['inventario_id'];
+  if ($pa['producto_web_id'] === null) return null;
+  $id = qv('SELECT id FROM inventario WHERE producto_web_id=? AND descripcion=?', [$pa['producto_web_id'], mb_substr($pa['descripcion'], 0, 190)]);
   return $id ? (int)$id : null;
 }
 function mover_stock(int $inv, int $cant, string $tipo, ?string $nota = null, ?int $venta = null): int {
+  // Mientras la existencia no se haya capturado, las ventas se registran pero no mueven el número
+  if (in_array($tipo, ['venta', 'devolucion'], true) && qv('SELECT stock IS NULL FROM inventario WHERE id=?', [$inv])) {
+    q('INSERT INTO movimientos (inventario_id, tipo, cantidad, stock_final, nota, venta_id, usuario_id, creado) VALUES (?,?,?,NULL,?,?,?,?)', [$inv, $tipo, $cant, $nota, $venta, usuario()['id'] ?? null, ahora()]);
+    return PHP_INT_MAX;
+  }
   q('UPDATE inventario SET stock=COALESCE(stock,0)+?, actualizado=? WHERE id=?', [$cant, ahora(), $inv]);
   $final = (int)qv('SELECT stock FROM inventario WHERE id=?', [$inv]);
   q('INSERT INTO movimientos (inventario_id, tipo, cantidad, stock_final, nota, venta_id, usuario_id, creado) VALUES (?,?,?,?,?,?,?,?)', [$inv, $tipo, $cant, $final, $nota, $venta, usuario()['id'] ?? null, ahora()]);
@@ -195,7 +219,6 @@ function mover_stock(int $inv, int $cant, string $tipo, ?string $nota = null, ?i
 // Deja el inventario de acuerdo con la venta: descuenta si está confirmada y regresa si se cancela o cambia.
 // Devuelve los productos que quedaron en negativo.
 function venta_sincronizar_stock(int $venta_id): array {
-  inventario_sync();
   $v = q1('SELECT estado FROM ventas WHERE id=?', [$venta_id]);
   $quiere = [];
   if ($v && $v['estado'] === 'confirmada') foreach (partidas('venta', $venta_id) as $pa) {
@@ -213,20 +236,21 @@ function venta_sincronizar_stock(int $venta_id): array {
   return $neg;
 }
 function faltantes_count(): int {
-  return (int)qv('SELECT COUNT(*) FROM inventario WHERE activo=1 AND stock IS NOT NULL AND stock <= minimo');
+  return (int)qv('SELECT COUNT(*) FROM inventario i JOIN productos p ON p.id=i.producto_web_id AND p.eliminado=0 WHERE i.activo=1 AND i.stock IS NOT NULL AND i.stock <= i.minimo');
 }
 
 /* ---------- partidas (renglones de venta o cotización) ---------- */
 function leer_partidas(): array {
   $out = [];
-  $d = $_POST['it_d'] ?? []; $c = $_POST['it_c'] ?? []; $pr = $_POST['it_p'] ?? []; $pid = $_POST['it_id'] ?? [];
+  $d = $_POST['it_d'] ?? []; $c = $_POST['it_c'] ?? []; $pr = $_POST['it_p'] ?? []; $pid = $_POST['it_id'] ?? []; $inv = $_POST['it_inv'] ?? [];
   foreach ((array)$d as $i => $desc) {
     $desc = txt($desc, 200);
     if ($desc === '') continue;
     $cant = max(0.0, num($c[$i] ?? 1)); if ($cant <= 0) $cant = 1;
     $precio = max(0.0, num($pr[$i] ?? 0));
     $id = ($pid[$i] ?? '') !== '' ? (int)$pid[$i] : null;
-    $out[] = ['producto_web_id' => $id, 'descripcion' => $desc, 'cantidad' => $cant, 'precio' => $precio, 'importe' => round($cant * $precio, 2)];
+    $iv = ($inv[$i] ?? '') !== '' ? (int)$inv[$i] : null;
+    $out[] = ['producto_web_id' => $id, 'inventario_id' => $iv, 'descripcion' => $desc, 'cantidad' => $cant, 'precio' => $precio, 'importe' => round($cant * $precio, 2)];
   }
   return $out;
 }
@@ -234,8 +258,8 @@ function guardar_partidas(string $doc, int $id, array $items): float {
   q('DELETE FROM partidas WHERE doc=? AND doc_id=?', [$doc, $id]);
   $sub = 0.0;
   foreach ($items as $it) {
-    q('INSERT INTO partidas (doc, doc_id, producto_web_id, descripcion, cantidad, precio, importe) VALUES (?,?,?,?,?,?,?)',
-      [$doc, $id, $it['producto_web_id'], $it['descripcion'], $it['cantidad'], $it['precio'], $it['importe']]);
+    q('INSERT INTO partidas (doc, doc_id, producto_web_id, inventario_id, descripcion, cantidad, precio, importe) VALUES (?,?,?,?,?,?,?,?)',
+      [$doc, $id, $it['producto_web_id'], $it['inventario_id'] ?? null, $it['descripcion'], $it['cantidad'], $it['precio'], $it['importe']]);
     $sub += $it['importe'];
   }
   return round($sub, 2);
@@ -301,10 +325,12 @@ function layout_inicio(string $titulo, string $activo = ''): void {
   $citas = $u ? (int)qv("SELECT COUNT(*) FROM citas WHERE estado='pendiente' AND fecha >= CURDATE()") : 0;
   $menu = [
     'resumen' => ['Resumen', 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z', 0],
+    'pos' => ['Punto de venta', 'M4 4h16v2H4zm1 3h14l1 5v2h-1v6H5v-6H4v-2zm2 7v4h6v-4zm8 0v4h2v-4z', 0],
     'ventas' => ['Ventas y cobros', 'M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4M1 2v2h2l3.6 7.6L5.2 14A2 2 0 0 0 7 17h12v-2H7.4l1.1-2h7.5a2 2 0 0 0 1.7-1l3.6-6.5A1 1 0 0 0 20.4 4H5.2l-.9-2zm16 16a2 2 0 1 0 0 4 2 2 0 0 0 0-4', $pend],
     'cotizaciones' => ['Cotizaciones', 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8z', 0],
     'agenda' => ['Agenda y citas', 'M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m0 16H5V9h14z', $citas],
     'clientes' => ['Clientes', 'M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .1 1.2.8 2 1.9 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5', 0],
+    'productos' => ['Productos de la web', 'M21 16.5c0 .4-.2.7-.5.9l-7.9 4.4a1 1 0 0 1-1.2 0l-7.9-4.4a1 1 0 0 1-.5-.9v-9c0-.4.2-.7.5-.9l7.9-4.4a1 1 0 0 1 1.2 0l7.9 4.4c.3.2.5.5.5.9zM12 4.2 6 7.5l6 3.3 6-3.3z', 0],
     'inventario' => ['Inventario', 'M20 2H4a2 2 0 0 0-2 2v3a2 2 0 0 0 1 1.7V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.7A2 2 0 0 0 22 7V4a2 2 0 0 0-2-2m-5 12H9v-2h6zm5-7H4V4h16z', $u ? faltantes_count() : 0],
     'reportes' => ['Reportes', 'M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z', 0],
   ];
@@ -353,7 +379,7 @@ function layout_fin(): void {
 
 // Editor de partidas compartido por ventas y cotizaciones
 function editor_partidas(array $items, float $descuento = 0, float $envio = 0): void {
-  if (!$items) $items = [['producto_web_id' => null, 'descripcion' => '', 'cantidad' => 1, 'precio' => 0]];
+  if (!$items) $items = [['producto_web_id' => null, 'inventario_id' => null, 'descripcion' => '', 'cantidad' => 1, 'precio' => 0]];
   ?>
   <div class="card">
     <h3>Productos</h3>
@@ -361,7 +387,7 @@ function editor_partidas(array $items, float $descuento = 0, float $envio = 0): 
       <div class="it it-h"><span>Producto o servicio</span><span>Cant.</span><span>Precio</span><span>Importe</span><span></span></div>
       <?php foreach ($items as $it): ?>
       <div class="it">
-        <input type="hidden" name="it_id[]" value="<?= e($it['producto_web_id']) ?>">
+        <input type="hidden" name="it_id[]" value="<?= e($it['producto_web_id']) ?>"><input type="hidden" name="it_inv[]" value="<?= e($it['inventario_id'] ?? '') ?>">
         <input name="it_d[]" list="catalogo" value="<?= e($it['descripcion']) ?>" placeholder="Busca en el catálogo o escribe…" autocomplete="off">
         <input name="it_c[]" type="number" min="1" step="1" value="<?= e((float)$it['cantidad']) ?>" inputmode="numeric">
         <input name="it_p[]" type="number" min="0" step="0.01" value="<?= e((float)$it['precio']) ?>" inputmode="decimal">

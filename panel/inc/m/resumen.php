@@ -8,8 +8,8 @@ $por_cobrar = (float)qv("SELECT COALESCE(SUM(total-pagado),0) FROM ventas WHERE 
 $pend = q("SELECT v.*, c.nombre cliente FROM ventas v LEFT JOIN clientes c ON c.id=v.cliente_id WHERE v.estado='por_confirmar' ORDER BY v.fecha DESC LIMIT 8")->fetchAll();
 $citas = q("SELECT ci.*, c.nombre cliente, c.telefono FROM citas ci LEFT JOIN clientes c ON c.id=ci.cliente_id WHERE ci.fecha BETWEEN ? AND ? AND ci.estado IN ('pendiente','confirmada') ORDER BY ci.fecha, ci.hora LIMIT 8", [$hoy, date('Y-m-d', strtotime('+6 days'))])->fetchAll();
 inventario_sync();
-$bajos = q('SELECT id, descripcion, stock, minimo FROM inventario WHERE activo=1 AND stock IS NOT NULL AND stock <= minimo ORDER BY stock, descripcion LIMIT 8')->fetchAll();
-$sin_capturar = (int)qv('SELECT COUNT(*) FROM inventario WHERE activo=1 AND stock IS NULL');
+$bajos = q('SELECT i.id, i.descripcion, i.stock, i.minimo FROM inventario i JOIN productos p ON p.id=i.producto_web_id AND p.eliminado=0 WHERE i.activo=1 AND i.stock IS NOT NULL AND i.stock <= i.minimo ORDER BY i.stock, i.descripcion LIMIT 8')->fetchAll();
+$sin_capturar = (int)qv('SELECT COUNT(*) FROM inventario i JOIN productos p ON p.id=i.producto_web_id AND p.eliminado=0 WHERE i.activo=1 AND i.stock IS NULL');
 $cots = (int)qv("SELECT COUNT(*) FROM cotizaciones WHERE estado IN ('borrador','enviada')");
 
 // ventas de los últimos 14 días

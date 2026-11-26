@@ -1,13 +1,13 @@
 <?php
 // Inventario con aviso de faltantes (módulo del plan Negocio, regalo de APARECE para Be Cap)
 inventario_sync();
-const CATS = ['vintage' => 'Vintage', 'originales' => 'Originales', 'disenador' => 'Diseñador', 'bucket' => 'Bucket', 'ropa' => 'Ropa', 'complementos' => 'Complementos', 'otro' => 'Otros'];
 const TIPOS_MOV = ['entrada' => 'Entrada', 'salida' => 'Salida', 'ajuste' => 'Ajuste', 'venta' => 'Venta', 'devolucion' => 'Regreso por venta'];
+const INV_JOIN = 'FROM inventario i JOIN productos p ON p.id=i.producto_web_id AND p.eliminado=0';
 
 if (es_post()) {
   $acc = $_POST['accion'] ?? '';
   if ($acc === 'capturar') {
-    // Captura masiva: stock y mínimo de cada producto visible
+    // Captura masiva: existencia y mínimo de cada variante visible
     $n = 0;
     foreach ((array)($_POST['st'] ?? []) as $id => $v) {
       $id = (int)$id; $v = trim((string)$v);
@@ -22,7 +22,7 @@ if (es_post()) {
         $n++;
       }
     }
-    flash($n ? "Inventario actualizado ($n producto" . ($n === 1 ? '' : 's') . ').' : 'Mínimos guardados.');
+    flash($n ? "Inventario actualizado ($n producto" . ($n === 1 ? '' : 's') . '). La página web ya muestra los cambios.' : 'Mínimos guardados.');
   } elseif ($acc === 'mover') {
     $id = (int)($_POST['inv'] ?? 0); $c = abs((int)($_POST['cantidad'] ?? 0));
     $tipo = ($_POST['tipo'] ?? '') === 'salida' ? 'salida' : 'entrada';
@@ -31,19 +31,6 @@ if (es_post()) {
       $final = mover_stock($id, $tipo === 'salida' ? -$c : $c, $tipo, txt($_POST['nota'] ?? '', 200) ?: null);
       flash(($tipo === 'entrada' ? "Entrada de $c registrada" : "Salida de $c registrada") . ". Ahora hay $final.");
     }
-  } elseif ($acc === 'nuevo') {
-    $d = txt($_POST['descripcion'] ?? '', 190);
-    if ($d === '') flash('Escribe el nombre del producto.', 'err');
-    elseif (qv('SELECT id FROM inventario WHERE producto_web_id IS NULL AND descripcion=?', [$d])) flash('Ya existe un producto con ese nombre.', 'err');
-    else {
-      q('INSERT INTO inventario (producto_web_id, descripcion, categoria, precio, minimo, actualizado) VALUES (NULL,?,?,?,?,?)', [$d, array_key_exists($_POST['categoria'] ?? '', CATS) ? $_POST['categoria'] : 'otro', max(0, num($_POST['precio'] ?? 0)), max(0, (int)($_POST['minimo'] ?? 1)), ahora()]);
-      $id = (int)db()->lastInsertId();
-      if (($s = (int)($_POST['stock'] ?? 0)) !== 0) mover_stock($id, $s, 'ajuste', 'Inventario inicial');
-      flash('Producto agregado al inventario. Ya aparece al hacer ventas y cotizaciones.');
-    }
-  } elseif ($acc === 'ocultar' && es_admin()) {
-    q('UPDATE inventario SET activo=1-activo WHERE id=?', [(int)($_POST['inv'] ?? 0)]);
-    flash('Producto actualizado.');
   }
   redirect('inventario', array_filter(['q' => $_POST['_q'] ?? '', 'cat' => $_POST['_cat'] ?? '', 'ver' => $_POST['_ver'] ?? '']));
 }
@@ -53,33 +40,33 @@ if (($_GET['exportar'] ?? '') === 'inventario') {
   header('Content-Type: text/csv; charset=utf-8');
   header('Content-Disposition: attachment; filename="becap-inventario-' . date('Y-m-d') . '.csv"');
   $out = fopen('php://output', 'w'); fwrite($out, "\xEF\xBB\xBF");
-  fputcsv($out, ['Producto', 'Categoría', 'Precio', 'Existencia', 'Mínimo', 'Estado', 'Valor a precio de venta', 'En la web']);
-  foreach (q('SELECT * FROM inventario WHERE activo=1 ORDER BY categoria, descripcion') as $r) {
+  fputcsv($out, ['Producto', 'Categoría', 'Precio', 'Existencia', 'Mínimo', 'Estado', 'Valor a precio de venta', 'Publicado en la web']);
+  foreach (q('SELECT i.*, p.publicado, p.categoria pcat ' . INV_JOIN . ' WHERE i.activo=1 ORDER BY p.categoria, i.descripcion') as $r) {
     $est = $r['stock'] === null ? 'Sin capturar' : ((int)$r['stock'] <= 0 ? 'Agotado' : ((int)$r['stock'] <= (int)$r['minimo'] ? 'Bajo' : 'Bien'));
-    fputcsv($out, [$r['descripcion'], CATS[$r['categoria']] ?? $r['categoria'], $r['precio'], $r['stock'], $r['minimo'], $est, round((float)$r['precio'] * max(0, (int)$r['stock']), 2), $r['producto_web_id'] === null ? 'No' : 'Sí']);
+    fputcsv($out, [$r['descripcion'], CATS[$r['pcat']] ?? $r['pcat'], $r['precio'], $r['stock'], $r['minimo'], $est, round((float)$r['precio'] * max(0, (int)$r['stock']), 2), $r['publicado'] ? 'Sí' : 'No']);
   }
   fclose($out); exit;
 }
 
 $f_q = txt($_GET['q'] ?? '', 60);
 $f_cat = array_key_exists($_GET['cat'] ?? '', CATS) ? $_GET['cat'] : '';
-$f_ver = in_array($_GET['ver'] ?? '', ['faltantes', 'sin', 'ocultos'], true) ? $_GET['ver'] : '';
-$w = [$f_ver === 'ocultos' ? 'activo=0' : 'activo=1']; $par = [];
-if ($f_q !== '') { $w[] = 'descripcion LIKE ?'; $par[] = "%$f_q%"; }
-if ($f_cat) { $w[] = 'categoria=?'; $par[] = $f_cat; }
-if ($f_ver === 'faltantes') $w[] = 'stock IS NOT NULL AND stock <= minimo';
-if ($f_ver === 'sin') $w[] = 'stock IS NULL';
-$rows = q('SELECT * FROM inventario WHERE ' . implode(' AND ', $w) . ' ORDER BY (stock IS NOT NULL AND stock <= minimo) DESC, categoria, descripcion', $par)->fetchAll();
+$f_ver = in_array($_GET['ver'] ?? '', ['faltantes', 'sin'], true) ? $_GET['ver'] : '';
+$w = ['i.activo=1']; $par = [];
+if ($f_q !== '') { $w[] = 'i.descripcion LIKE ?'; $par[] = "%$f_q%"; }
+if ($f_cat) { $w[] = 'p.categoria=?'; $par[] = $f_cat; }
+if ($f_ver === 'faltantes') $w[] = 'i.stock IS NOT NULL AND i.stock <= i.minimo';
+if ($f_ver === 'sin') $w[] = 'i.stock IS NULL';
+$rows = q('SELECT i.*, p.categoria pcat, p.publicado, p.id pid ' . INV_JOIN . ' WHERE ' . implode(' AND ', $w) . ' ORDER BY (i.stock IS NOT NULL AND i.stock <= i.minimo) DESC, p.categoria, i.descripcion', $par)->fetchAll();
 
-$k = q1('SELECT COALESCE(SUM(GREATEST(stock,0)),0) piezas, COALESCE(SUM(GREATEST(stock,0)*precio),0) valor, SUM(stock IS NOT NULL AND stock<=0) agotados, SUM(stock IS NOT NULL AND stock>0 AND stock<=minimo) bajos, SUM(stock IS NULL) sin FROM inventario WHERE activo=1');
+$k = q1('SELECT COALESCE(SUM(GREATEST(i.stock,0)),0) piezas, COALESCE(SUM(GREATEST(i.stock,0)*i.precio),0) valor, COALESCE(SUM(i.stock IS NOT NULL AND i.stock<=0),0) agotados, COALESCE(SUM(i.stock IS NOT NULL AND i.stock>0 AND i.stock<=i.minimo),0) bajos, COALESCE(SUM(i.stock IS NULL),0) sin, COUNT(*) total ' . INV_JOIN . ' WHERE i.activo=1');
 $movs = q('SELECT m.*, i.descripcion, u.nombre usr FROM movimientos m JOIN inventario i ON i.id=m.inventario_id LEFT JOIN usuarios u ON u.id=m.usuario_id ORDER BY m.id DESC LIMIT 40')->fetchAll();
-$todos = q('SELECT id, descripcion, stock FROM inventario WHERE activo=1 ORDER BY descripcion')->fetchAll();
+$todos = q('SELECT i.id, i.descripcion, i.stock ' . INV_JOIN . ' WHERE i.activo=1 ORDER BY i.descripcion')->fetchAll();
 $keep = '<input type="hidden" name="_q" value="' . e($f_q) . '"><input type="hidden" name="_cat" value="' . e($f_cat) . '"><input type="hidden" name="_ver" value="' . e($f_ver) . '">';
 
 layout_inicio('Inventario', 'inventario');
 ?>
-<div class="head"><div><h1>Inventario</h1><p class="muted">Existencias de cada gorra y variante. Las ventas confirmadas descuentan solas y las canceladas regresan.</p></div>
-  <div class="acts"><a class="btn ghost" href="<?= url('inventario', ['exportar' => 'inventario']) ?>">Descargar Excel</a><button class="btn ghost" data-open="nuevoProd">+ Producto</button><button class="btn" data-open="moverForm">Entrada / salida</button></div></div>
+<div class="head"><div><h1>Inventario</h1><p class="muted">Existencias de cada gorra, talla y color. Las ventas confirmadas y el punto de venta descuentan solos; las canceladas regresan. Lo que se agota aparece como agotado en la página web.</p></div>
+  <div class="acts"><a class="btn ghost" href="<?= url('inventario', ['exportar' => 'inventario']) ?>">Descargar Excel</a><?php if (es_admin()): ?><a class="btn ghost" href="<?= url('producto', ['nuevo' => 1]) ?>">+ Producto</a><?php endif; ?><button class="btn" data-open="moverForm">Entrada / salida</button></div></div>
 
 <div class="kpis">
   <div class="kpi"><small>Piezas en existencia</small><b><?= number_format((float)$k['piezas']) ?></b><span>valor <?= money($k['valor']) ?> a precio de venta</span></div>
@@ -88,7 +75,7 @@ layout_inicio('Inventario', 'inventario');
   <div class="kpi"><small>Sin capturar</small><b><?= (int)$k['sin'] ?></b><span><a href="<?= url('inventario', ['ver' => 'sin']) ?>">capturar existencias</a></span></div>
 </div>
 
-<?php if ((int)$k['sin'] > 0 && (int)$k['sin'] === count($todos)): ?>
+<?php if ((int)$k['sin'] > 0 && (int)$k['sin'] === (int)$k['total']): ?>
 <div class="flash">Primer paso: escribe cuántas piezas hay de cada producto en la columna “Existencia” y presiona “Guardar inventario”. Los productos de la página web ya están cargados.</div>
 <?php endif; ?>
 
@@ -102,38 +89,26 @@ layout_inicio('Inventario', 'inventario');
   </form>
 </div>
 
-<div class="card hidden" id="nuevoProd"><h3>Agregar producto que no está en la web</h3>
-  <form method="post" class="row-form"><?= csrf_field() . $keep ?><input type="hidden" name="accion" value="nuevo">
-    <label style="flex:3 1 260px">Nombre <input name="descripcion" required maxlength="190" placeholder="Ej. Gorra bordada personalizada"></label>
-    <label>Categoría <select name="categoria"><?= select_opts(CATS, 'otro') ?></select></label>
-    <label>Precio <input name="precio" type="number" min="0" step="0.01" value="0"></label>
-    <label>Existencia <input name="stock" type="number" step="1" value="0"></label>
-    <label>Mínimo <input name="minimo" type="number" min="0" step="1" value="1"></label>
-    <button class="btn">Agregar</button>
-  </form>
-</div>
-
 <form class="filters" method="get"><input type="hidden" name="p" value="inventario">
   <input name="q" placeholder="Buscar producto" value="<?= e($f_q) ?>">
   <select name="cat"><option value="">Todas las categorías</option><?= select_opts(CATS, $f_cat) ?></select>
-  <select name="ver"><option value="">Todos</option><option value="faltantes"<?= $f_ver === 'faltantes' ? ' selected' : '' ?>>Solo faltantes</option><option value="sin"<?= $f_ver === 'sin' ? ' selected' : '' ?>>Sin capturar</option><?php if (es_admin()): ?><option value="ocultos"<?= $f_ver === 'ocultos' ? ' selected' : '' ?>>Ocultos</option><?php endif; ?></select>
+  <select name="ver"><option value="">Todos</option><option value="faltantes"<?= $f_ver === 'faltantes' ? ' selected' : '' ?>>Solo faltantes</option><option value="sin"<?= $f_ver === 'sin' ? ' selected' : '' ?>>Sin capturar</option></select>
   <button class="btn ghost">Filtrar</button>
 </form>
 
 <form method="post"><?= csrf_field() . $keep ?><input type="hidden" name="accion" value="capturar">
 <div class="card flush">
 <?php if (!$rows): ?><p class="muted pad">No hay productos con esos filtros.</p><?php else: ?>
-<table class="tbl inv"><thead><tr><th>Producto</th><th class="r">Precio</th><th>Estado</th><th class="r">Existencia</th><th class="r">Mínimo</th><?php if (es_admin()): ?><th></th><?php endif; ?></tr></thead><tbody>
+<table class="tbl inv"><thead><tr><th>Producto</th><th class="r">Precio</th><th>Estado</th><th class="r">Existencia</th><th class="r">Mínimo</th></tr></thead><tbody>
 <?php foreach ($rows as $r):
   $st = $r['stock'];
   [$cls, $lbl] = $st === null ? ['', 'Sin capturar'] : ((int)$st <= 0 ? ['cancelada', 'Agotado'] : ((int)$st <= (int)$r['minimo'] ? ['pendiente', 'Por agotarse'] : ['confirmada', 'Bien']));
 ?>
-<tr><td><b><?= e($r['descripcion']) ?></b><br><span class="muted sm"><?= e(CATS[$r['categoria']] ?? 'Otros') ?><?= $r['producto_web_id'] === null ? ' · solo en tienda' : '' ?></span></td>
+<tr><td><a href="<?= url('producto', ['id' => $r['pid']]) ?>"><b><?= e($r['descripcion']) ?></b></a><br><span class="muted sm"><?= e(CATS[$r['pcat']] ?? $r['pcat']) ?><?= $r['publicado'] ? '' : ' · no publicado en la web' ?></span></td>
   <td class="r"><?= money($r['precio']) ?></td>
   <td><span class="chip chip-<?= $cls ?>"><?= $lbl ?></span></td>
   <td class="r"><input class="num" type="number" step="1" name="st[<?= $r['id'] ?>]" value="<?= $st === null ? '' : (int)$st ?>" placeholder="—" aria-label="Existencia de <?= e($r['descripcion']) ?>"></td>
   <td class="r"><input class="num sm" type="number" min="0" step="1" name="mn[<?= $r['id'] ?>]" value="<?= (int)$r['minimo'] ?>" aria-label="Mínimo de <?= e($r['descripcion']) ?>"></td>
-  <?php if (es_admin()): ?><td class="r"><button class="link sm" form="oc<?= $r['id'] ?>"><?= $r['activo'] ? 'Ocultar' : 'Mostrar' ?></button></td><?php endif; ?>
 </tr>
 <?php endforeach; ?>
 </tbody></table>
@@ -141,7 +116,6 @@ layout_inicio('Inventario', 'inventario');
 </div>
 <?php if ($rows): ?><div class="acts end sticky-save"><span class="muted sm">Cambia las cantidades que necesites y guarda una sola vez.</span><button class="btn big">Guardar inventario</button></div><?php endif; ?>
 </form>
-<?php if (es_admin()) foreach ($rows as $r): ?><form method="post" id="oc<?= $r['id'] ?>" class="hidden"><?= csrf_field() . $keep ?><input type="hidden" name="accion" value="ocultar"><input type="hidden" name="inv" value="<?= $r['id'] ?>"></form><?php endforeach; ?>
 
 <div class="card flush mt"><h3 class="pad">Últimos movimientos</h3>
 <?php if (!$movs): ?><p class="muted pad">Aún no hay movimientos.</p><?php else: ?>
