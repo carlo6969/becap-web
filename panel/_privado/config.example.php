@@ -7,4 +7,5 @@ return [
   'db_pass'      => 'CAMBIAR',
   'setup_key'    => 'CLAVE-DE-INSTALACION-LARGA', // se usa una sola vez para crear al primer administrador
   'max_usuarios' => 2,                            // plan Esencial: hasta 2 usuarios
+  // 'dir_fotos'  => '/ruta/fuera/de/public_html/becap-fotos', // opcional; por defecto, junto a public_html
 ];

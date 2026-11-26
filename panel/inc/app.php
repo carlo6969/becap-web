@@ -195,6 +195,16 @@ function catalogo_opciones(): array {
   return $o;
 }
 function nuevo_producto_id(): int { return (int)qv('SELECT COALESCE(MAX(id),-1)+1 FROM productos'); }
+// Carpeta de fotos de productos. Va fuera de la carpeta pública para que una nueva publicación del sitio no las borre.
+function dir_fotos(): string {
+  $c = config();
+  if (!empty($c['dir_fotos'])) return rtrim($c['dir_fotos'], '/');
+  if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+    $d = dirname($_SERVER['DOCUMENT_ROOT']) . '/becap-fotos';
+    if (is_dir($d) || @mkdir($d, 0755, true)) return $d;
+  }
+  return __DIR__ . '/../../subidas/productos';
+}
 function img_panel(string $src): string { return preg_match('~^https?://~', $src) ? $src : '../' . ltrim($src, '/'); }
 
 /* ---------- inventario (regalo de APARECE: módulo del plan Negocio) ---------- */

@@ -1,20 +1,20 @@
 <?php
 // Productos de la página web: lo que se publique aquí es lo que ve el cliente en la tienda en línea
 importar_catalogo_inicial();
-const DIR_FOTOS = __DIR__ . '/../../../subidas/productos';
 const MAX_FOTOS = 8;
 
 function slugify(string $s): string {
   $s = strtolower(strtr($s, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','ü'=>'u','Á'=>'a','É'=>'e','Í'=>'i','Ó'=>'o','Ú'=>'u','Ñ'=>'n']));
   return trim(preg_replace('/[^a-z0-9]+/', '-', $s), '-') ?: 'producto';
 }
-// Guarda una foto subida en /subidas/productos, la reduce a 1200 px y la convierte a WebP cuando el hosting lo permite
+// Guarda una foto subida (ver dir_fotos()), la reduce a 1200 px y la convierte a WebP cuando el hosting lo permite
 function guardar_foto(array $f, int $pid): ?string {
   if (($f['error'] ?? 1) !== UPLOAD_ERR_OK || $f['size'] > 8 * 1024 * 1024 || !is_uploaded_file($f['tmp_name'])) return null;
   $info = @getimagesize($f['tmp_name']);
   $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$info['mime'] ?? ''] ?? null;
   if (!$ext) return null;
-  if (!is_dir(DIR_FOTOS) && !@mkdir(DIR_FOTOS, 0755, true)) return null;
+  $dir = dir_fotos();
+  if (!is_dir($dir) && !@mkdir($dir, 0755, true)) return null;
   $base = $pid . '-' . bin2hex(random_bytes(5));
   if (function_exists('imagewebp') && ($src = @imagecreatefromstring((string)file_get_contents($f['tmp_name'])))) {
     [$w, $h] = [imagesx($src), imagesy($src)];
@@ -22,11 +22,11 @@ function guardar_foto(array $f, int $pid): ?string {
     $dst = imagecreatetruecolor((int)round($w * $k), (int)round($h * $k));
     imagealphablending($dst, false); imagesavealpha($dst, true);
     imagecopyresampled($dst, $src, 0, 0, 0, 0, imagesx($dst), imagesy($dst), $w, $h);
-    $ok = imagewebp($dst, DIR_FOTOS . "/$base.webp", 82);
+    $ok = imagewebp($dst, "$dir/$base.webp", 82);
     imagedestroy($src); imagedestroy($dst);
-    return $ok ? "subidas/productos/$base.webp" : null;
+    return $ok ? "panel/api/foto.php?f=$base.webp" : null;
   }
-  return move_uploaded_file($f['tmp_name'], DIR_FOTOS . "/$base.$ext") ? "subidas/productos/$base.$ext" : null;
+  return move_uploaded_file($f['tmp_name'], "$dir/$base.$ext") ? "panel/api/foto.php?f=$base.$ext" : null;
 }
 
 /* ======================= DETALLE / EDICIÓN ======================= */
