@@ -8,6 +8,10 @@ const money = n => '$' + Number(n).toLocaleString('es-MX', {minimumFractionDigit
 const img = (p, k=0) => `img/p/${p.id}-${Math.min(k, p.n-1)}.webp`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store = { get(k, d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } }, set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} } };
+const ESTADOS = ["Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México", "Coahuila", "Colima", "Durango", "Estado de México", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"];
+const AD_KEYS = ['tel','calle','ext','int','col','cp','mun','edo','ref'];
+let AD = store.get('becap_addr', {});
+function readAD(){ AD_KEYS.forEach(k => { const el = document.getElementById('ad_'+k); if(el) AD[k] = el.value.trim(); }); store.set('becap_addr', AD); }
 
 const CATS = [
   {k:'originales', t:'Originales', s:'New Era · ’47 · Puma', img:69},
@@ -156,7 +160,7 @@ document.addEventListener('click', e => {
 
 /* ---------- overlays ---------- */
 const scrim = $('#scrim');
-function openLayer(el){ closeAll(true); el.classList.add('on'); scrim.classList.add('on'); document.body.style.overflow='hidden'; }
+function openLayer(el){ hideToast(); closeAll(true); el.classList.add('on'); scrim.classList.add('on'); document.body.style.overflow='hidden'; }
 function closeAll(keep){ ['#cart','#mnav','#filters','#pm'].forEach(s => $(s).classList.remove('on')); if(!keep){ scrim.classList.remove('on'); document.body.style.overflow=''; } }
 scrim.onclick = () => closeAll();
 $$('[data-close]').forEach(b => b.onclick = () => closeAll());
@@ -239,26 +243,45 @@ function renderCart(){
     $('#cartBody').innerHTML = `<div class="co">
       <div class="f"><label for="coName">Nombre</label><input id="coName" placeholder="Nombre y apellido" value="${esc(store.get('becap_name',''))}"></div>
       <div class="f"><label>¿Cómo lo quieres recibir?</label><div class="seg"><button data-del="tienda" class="${delivery==='tienda'?'on':''}">Recoger en tienda<small>Av. Revolución 503, Pachuca</small></button><button data-del="envio" class="${delivery==='envio'?'on':''}">Envío a domicilio<small>${tot>=1000?'Gratis en este pedido':'Gratis desde $1,000'}</small></button></div></div>
-      ${delivery==='envio'?`<div class="f"><label for="coAddr">Ciudad y código postal</label><input id="coAddr" placeholder="Ej. Querétaro, 76000"></div>`:''}
+      ${delivery==='envio'?`<div class="addr">
+        <p class="addr-h">Dirección de envío <small>la usamos para generar tu guía</small></p>
+        <div class="f"><label for="ad_tel">Teléfono (WhatsApp) *</label><input id="ad_tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="15" placeholder="10 dígitos" value="${esc(AD.tel||'')}"></div>
+        <div class="f"><label for="ad_calle">Calle *</label><input id="ad_calle" autocomplete="address-line1" placeholder="Ej. Av. Juárez" value="${esc(AD.calle||'')}"></div>
+        <div class="f2"><div class="f"><label for="ad_ext">No. exterior *</label><input id="ad_ext" placeholder="123" value="${esc(AD.ext||'')}"></div><div class="f"><label for="ad_int">No. interior</label><input id="ad_int" placeholder="Depto 4B" value="${esc(AD.int||'')}"></div></div>
+        <div class="f"><label for="ad_col">Colonia *</label><input id="ad_col" placeholder="Ej. Centro" value="${esc(AD.col||'')}"></div>
+        <div class="f2"><div class="f"><label for="ad_cp">Código postal *</label><input id="ad_cp" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="42000" value="${esc(AD.cp||'')}"></div><div class="f"><label for="ad_mun">Ciudad o municipio *</label><input id="ad_mun" autocomplete="address-level2" placeholder="Ej. Pachuca" value="${esc(AD.mun||'')}"></div></div>
+        <div class="f"><label for="ad_edo">Estado *</label><select id="ad_edo"><option value="">Elige tu estado</option>${ESTADOS.map(e=>`<option ${AD.edo===e?'selected':''}>${e}</option>`).join('')}</select></div>
+        <div class="f"><label for="ad_ref">Referencias para el repartidor</label><input id="ad_ref" placeholder="Entre calles, color de fachada, portón…" value="${esc(AD.ref||'')}"></div>
+      </div>`:''}
       <div class="f"><label for="coNote">Notas (opcional)</label><textarea id="coNote" placeholder="Talla, color alterno, horario para recoger…"></textarea></div>
       <div class="ship"><b>Resumen</b><br>${cart.map(c=>`${c.q} × ${esc(P[c.id].t)}${c.vt?' ('+esc(c.vt)+')':''}`).join('<br>')}</div>
     </div>`;
     $('#cartFoot').innerHTML = `<div class="tot"><span>Total productos</span><span>${money(tot)} MXN</span></div><button class="btn" style="background:#25d366;color:#fff" id="sendWA"><svg class="ic"><use href="#i-wa"/></svg> Enviar pedido por WhatsApp</button><button class="btn btn-ghost btn-sm" id="backCart">Volver al carrito</button><p class="demo-note">Te confirmamos disponibilidad y forma de pago por WhatsApp. En la versión final se puede activar el pago en línea con tarjeta.</p>`;
   }
 }
+$('#cart').addEventListener('input', e => { if(e.target.id && e.target.id.startsWith('ad_')){ e.target.classList.remove('bad'); readAD(); } });
+$('#cart').addEventListener('change', e => { if(e.target.id==='ad_edo'){ e.target.classList.remove('bad'); readAD(); } });
 $('#cart').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.cq){ const c = cart[+b.dataset.cq]; c.q += +b.dataset.d; if(c.q<1) cart.splice(+b.dataset.cq,1); else c.q = Math.min(9,c.q); saveCart(); }
   if(b.dataset.crm){ cart.splice(+b.dataset.crm,1); saveCart(); }
   if(b.id==='goCO'){ coMode = true; renderCart(); }
   if(b.id==='backCart'){ coMode = false; renderCart(); }
-  if(b.dataset.del){ const nm = $('#coName')?.value; if(nm) store.set('becap_name', nm); delivery = b.dataset.del; renderCart(); }
+  if(b.dataset.del){ const nm = $('#coName')?.value; if(nm) store.set('becap_name', nm); readAD(); delivery = b.dataset.del; renderCart(); }
   if(b.hasAttribute('data-close-cart')) closeAll();
   if(b.id==='sendWA'){
     const nm = $('#coName').value.trim(); if(!nm){ $('#coName').focus(); $('#coName').style.borderColor='var(--red)'; return; }
     store.set('becap_name', nm);
-    const addr = $('#coAddr')?.value.trim() || '', note = $('#coNote').value.trim(), tot = cartTotal();
-    const msg = `¡Hola Be Cap! 👋 Quiero hacer este pedido desde su página web:\n\n${cart.map(c=>`• ${c.q} × ${P[c.id].t}${c.vt?' ('+c.vt+')':''} – ${money(c.pr*c.q)}`).join('\n')}\n\nTotal productos: ${money(tot)} MXN\nEntrega: ${delivery==='tienda'?'Recoger en tienda':'Envío a domicilio'+(addr?' – '+addr:'')}${delivery==='envio'?(tot>=1000?' (envío gratis)':''):''}\nNombre: ${nm}${note?'\nNotas: '+note:''}\n\n¿Me confirman disponibilidad y forma de pago?`;
+    const note = $('#coNote').value.trim(), tot = cartTotal();
+    let addr = '';
+    if(delivery==='envio'){
+      readAD();
+      const req = ['tel','calle','ext','col','cp','mun','edo'];
+      const bad = req.filter(k => !AD[k] || (k==='cp' && !/^\d{5}$/.test(AD[k])) || (k==='tel' && AD[k].replace(/\D/g,'').length < 10));
+      if(bad.length){ bad.forEach(k => document.getElementById('ad_'+k).classList.add('bad')); const f = document.getElementById('ad_'+bad[0]); f.focus(); f.scrollIntoView({block:'center', behavior:'smooth'}); return; }
+      addr = `\n\n📦 Dirección de envío:\n${AD.calle} ${AD.ext}${AD.int?' Int. '+AD.int:''}\nCol. ${AD.col}, C.P. ${AD.cp}\n${AD.mun}, ${AD.edo}${AD.ref?'\nReferencias: '+AD.ref:''}\nTeléfono: ${AD.tel}`;
+    }
+    const msg = `¡Hola Be Cap! 👋 Quiero hacer este pedido desde su página web:\n\n${cart.map(c=>`• ${c.q} × ${P[c.id].t}${c.vt?' ('+c.vt+')':''} – ${money(c.pr*c.q)}`).join('\n')}\n\nTotal productos: ${money(tot)} MXN\nEntrega: ${delivery==='tienda'?'Recoger en tienda':'Envío a domicilio'+(tot>=1000?' (envío gratis)':'')}\nNombre: ${nm}${addr}${note?'\nNotas: '+note:''}\n\n¿Me confirman disponibilidad y forma de pago?`;
     window.open(`https://wa.me/${WA}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   }
 });
@@ -266,11 +289,13 @@ $('#openCart').onclick = () => { coMode=false; renderCart(); openLayer($('#cart'
 $('#mCart').onclick = () => { coMode=false; renderCart(); openLayer($('#cart')); };
 
 let tt;
+function hideToast(){ clearTimeout(tt); const t = document.getElementById('toast'); if(t) t.classList.remove('on'); }
 function toast(p, vt){
   const t = $('#toast');
-  t.innerHTML = `<img src="${img(p)}" alt=""><div><b>Agregado al carrito</b><small>${esc(p.t.length>34?p.t.slice(0,32)+'…':p.t)}${vt?' · '+esc(vt):''}</small></div><button id="toastGo">Ver carrito</button>`;
-  t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 3200);
-  $('#toastGo').onclick = () => { t.classList.remove('on'); $('#openCart').click(); };
+  t.innerHTML = `<img src="${img(p)}" alt=""><div class="tx"><b>Agregado al carrito</b><small>${esc(p.t)}${vt?' · '+esc(vt):''}</small></div><button id="toastGo">Ver carrito</button><button class="tclose" id="toastX" aria-label="Cerrar aviso">×</button>`;
+  t.classList.add('on'); clearTimeout(tt); tt = setTimeout(hideToast, 3500);
+  $('#toastGo').onclick = () => { hideToast(); $('#openCart').click(); };
+  $('#toastX').onclick = hideToast;
 }
 
 /* ---------- search overlay ---------- */
