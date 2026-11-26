@@ -235,15 +235,16 @@ function renderCart(){
   }
   if(!coMode){
     $('#cartTitle').textContent = `Tu carrito (${n})`;
-    $('#cartBody').innerHTML = `<div class="ship ${left?'':'ok'}">${left?`Te faltan <b>${money(left)}</b> para envío gratis`:'¡Tu pedido tiene envío gratis! 🎉'}<div class="bar"><i style="width:${Math.min(100,tot/10)}%"></i></div></div>` +
+    $('#cartBody').innerHTML = `<div class="ship ${left?'':'ok'}">${left?`Te faltan <b>${money(left)}</b> para envío gratis`:'¡Tu pedido tiene envío gratis! 🎉'}<div class="bar"><i style="width:${Math.min(100,tot/10)}%"></i></div><p class="ship-note">${left?'Envío a domicilio con costo extra por la guía de envío. ':''}Entrega a domicilio en 2 a 3 días.</p></div>` +
       cart.map((c,i) => { const p = P[c.id]; return `<div class="citem"><img src="${img(p)}" alt=""><div><h5>${esc(p.t)}</h5><small>${c.vt?esc(c.vt)+' · ':''}${money(c.pr)}</small><div class="stepper"><button data-cq="${i}" data-d="-1" aria-label="Menos">−</button><span>${c.q}</span><button data-cq="${i}" data-d="1" aria-label="Más">+</button></div></div><div><b>${money(c.pr*c.q)}</b><button class="rm" data-crm="${i}">Quitar</button></div></div>`; }).join('');
     $('#cartFoot').innerHTML = `<div class="tot"><span>Subtotal</span><span>${money(tot)} MXN</span></div><button class="btn btn-ink" id="goCO">Finalizar pedido <svg class="ic"><use href="#i-arrow"/></svg></button><button class="btn btn-ghost btn-sm" data-close-cart>Seguir comprando</button>`;
   } else {
     $('#cartTitle').textContent = 'Datos de tu pedido';
     $('#cartBody').innerHTML = `<div class="co">
       <div class="f"><label for="coName">Nombre</label><input id="coName" placeholder="Nombre y apellido" value="${esc(store.get('becap_name',''))}"></div>
-      <div class="f"><label>¿Cómo lo quieres recibir?</label><div class="seg"><button data-del="tienda" class="${delivery==='tienda'?'on':''}">Recoger en tienda<small>Av. Revolución 503, Pachuca</small></button><button data-del="envio" class="${delivery==='envio'?'on':''}">Envío a domicilio<small>${tot>=1000?'Gratis en este pedido':'Gratis desde $1,000'}</small></button></div></div>
+      <div class="f"><label>¿Cómo lo quieres recibir?</label><div class="seg"><button data-del="tienda" class="${delivery==='tienda'?'on':''}">Recoger en tienda<small>Av. Revolución 503, Pachuca</small></button><button data-del="envio" class="${delivery==='envio'?'on':''}">Envío a domicilio<small>${tot>=1000?'Gratis en este pedido':'Costo extra por guía · gratis desde $1,000'}</small><small>Llega en 2 a 3 días</small></button></div></div>
       ${delivery==='envio'?`<div class="addr">
+        <div class="ship-info ${tot>=1000?'ok':''}">${tot>=1000?'<b>Tu envío es gratis.</b>':`<b>El envío a domicilio tiene un costo extra</b> por la guía de envío; se suma a tu pedido y te lo confirmamos por WhatsApp. Es gratis en compras desde $1,000 (te faltan ${money(1000-tot)}).`}<br>🚚 Tu pedido llega en <b>2 a 3 días</b>.</div>
         <p class="addr-h">Dirección de envío <small>la usamos para generar tu guía</small></p>
         <div class="f"><label for="ad_tel">Teléfono (WhatsApp) *</label><input id="ad_tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="15" placeholder="10 dígitos" value="${esc(AD.tel||'')}"></div>
         <div class="f"><label for="ad_calle">Calle *</label><input id="ad_calle" autocomplete="address-line1" placeholder="Ej. Av. Juárez" value="${esc(AD.calle||'')}"></div>
@@ -256,7 +257,7 @@ function renderCart(){
       <div class="f"><label for="coNote">Notas (opcional)</label><textarea id="coNote" placeholder="Talla, color alterno, horario para recoger…"></textarea></div>
       <div class="ship"><b>Resumen</b><br>${cart.map(c=>`${c.q} × ${esc(P[c.id].t)}${c.vt?' ('+esc(c.vt)+')':''}`).join('<br>')}</div>
     </div>`;
-    $('#cartFoot').innerHTML = `<div class="tot"><span>Total productos</span><span>${money(tot)} MXN</span></div><button class="btn" style="background:#25d366;color:#fff" id="sendWA"><svg class="ic"><use href="#i-wa"/></svg> Enviar pedido por WhatsApp</button><button class="btn btn-ghost btn-sm" id="backCart">Volver al carrito</button><p class="demo-note">Te confirmamos disponibilidad y forma de pago por WhatsApp. En la versión final se puede activar el pago en línea con tarjeta.</p>`;
+    $('#cartFoot').innerHTML = `<div class="tot"><span>Total productos</span><span>${money(tot)} MXN</span></div>${delivery==='envio'?`<div class="tot-ship"><span>Envío a domicilio</span><span>${tot>=1000?'Gratis':'+ costo de guía'}</span></div>`:''}<button class="btn" style="background:#25d366;color:#fff" id="sendWA"><svg class="ic"><use href="#i-wa"/></svg> Enviar pedido por WhatsApp</button><button class="btn btn-ghost btn-sm" id="backCart">Volver al carrito</button><p class="demo-note">Te confirmamos disponibilidad, costo de envío y forma de pago por WhatsApp.</p>`;
   }
 }
 $('#cart').addEventListener('input', e => { if(e.target.id && e.target.id.startsWith('ad_')){ e.target.classList.remove('bad'); readAD(); } });
@@ -281,7 +282,7 @@ $('#cart').addEventListener('click', e => {
       if(bad.length){ bad.forEach(k => document.getElementById('ad_'+k).classList.add('bad')); const f = document.getElementById('ad_'+bad[0]); f.focus(); f.scrollIntoView({block:'center', behavior:'smooth'}); return; }
       addr = `\n\n📦 Dirección de envío:\n${AD.calle} ${AD.ext}${AD.int?' Int. '+AD.int:''}\nCol. ${AD.col}, C.P. ${AD.cp}\n${AD.mun}, ${AD.edo}${AD.ref?'\nReferencias: '+AD.ref:''}\nTeléfono: ${AD.tel}`;
     }
-    const msg = `¡Hola Be Cap! 👋 Quiero hacer este pedido desde su página web:\n\n${cart.map(c=>`• ${c.q} × ${P[c.id].t}${c.vt?' ('+c.vt+')':''} – ${money(c.pr*c.q)}`).join('\n')}\n\nTotal productos: ${money(tot)} MXN\nEntrega: ${delivery==='tienda'?'Recoger en tienda':'Envío a domicilio'+(tot>=1000?' (envío gratis)':'')}\nNombre: ${nm}${addr}${note?'\nNotas: '+note:''}\n\n¿Me confirman disponibilidad y forma de pago?`;
+    const msg = `¡Hola Be Cap! 👋 Quiero hacer este pedido desde su página web:\n\n${cart.map(c=>`• ${c.q} × ${P[c.id].t}${c.vt?' ('+c.vt+')':''} – ${money(c.pr*c.q)}`).join('\n')}\n\nTotal productos: ${money(tot)} MXN\nEntrega: ${delivery==='tienda'?'Recoger en tienda':'Envío a domicilio'+(tot>=1000?' (envío gratis)':' (+ costo de guía de envío)')+'\nTiempo de entrega: 2 a 3 días'}\nNombre: ${nm}${addr}${note?'\nNotas: '+note:''}\n\n¿Me confirman disponibilidad y forma de pago?`;
     window.open(`https://wa.me/${WA}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   }
 });
