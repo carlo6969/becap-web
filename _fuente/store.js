@@ -15,15 +15,23 @@ const AD_KEYS = ['tel','calle','ext','int','col','cp','mun','edo','ref'];
 let AD = store.get('becap_addr', {});
 function readAD(){ AD_KEYS.forEach(k => { const el = document.getElementById('ad_'+k); if(el) AD[k] = el.value.trim(); }); store.set('becap_addr', AD); }
 
+// Categorías generales de la tienda. "de" = categorías del panel que entran en cada una
+// (las gorras conservan su estilo: originales, diseñador, vintage y bucket, como subcategoría).
 const CATS = [
-  {k:'originales', t:'Originales', s:'New Era · ’47 · Puma', img:69},
-  {k:'disenador', t:'Diseñador', s:'Kiblo · 31 Hats · Barbas', img:65},
-  {k:'vintage', t:'Vintage & Flex', s:'Algodón, acid wash, flex', img:52},
-  {k:'bucket', t:'Bucket & Brimless', s:'Pana, corduroy, docker', img:40},
-  {k:'ropa', t:'Ropa', s:'Hoodies, playeras, shorts', img:19},
-  {k:'complementos', t:'Complementos', s:'Calcetas, lentes, cuidado', img:3},
+  {k:'gorras', t:'Gorras', s:'New Era, diseñador y vintage', img:69, de:['gorras','originales','disenador','vintage','bucket']},
+  {k:'ropa', t:'Ropa', s:'Hoodies, playeras, shorts', img:19, de:['ropa']},
+  {k:'personalizado', t:'Personalizado', s:'Diseña tu gorra en 3D', src:'img/personalizado.webp', de:['personalizado'], go:'studio'},
+  {k:'mayoreo', t:'Paquetes mayoreo', s:'Gorras bordadas para tu marca o negocio', src:'img/hero.webp', de:['mayoreo'], go:'wa'},
+  {k:'accesorios', t:'Accesorios', s:'Calcetas, lentes, bandanas', img:3, de:['complementos','accesorios']},
+  {k:'limpieza', t:'Limpieza', s:'Kit de limpieza y cuidado', img:26, de:['limpieza']},
 ];
-const catName = k => (CATS.find(c => c.k === k) || {}).t || 'Todo';
+const SUBS = {originales:'Originales', disenador:'Diseñador', vintage:'Vintage & Flex', bucket:'Bucket & Brimless'};
+// grupo de cada producto (el kit de limpieza se separa de accesorios aunque en el panel siga en "complementos")
+const grp = p => { if(p.c==='limpieza' || (p.c==='complementos' && /LIMPIEZA|CAP ?LINER/i.test(p.t))) return 'limpieza'; const c = CATS.find(c => c.de.includes(p.c)); return c ? c.k : 'gorras'; };
+P.forEach(p => { p.g = grp(p); });
+const inCat = (p, k) => k==='all' || p.g===k || (SUBS[k] && p.c===k);
+const nCat = k => P.filter(p => inCat(p, k)).length;
+const catName = k => SUBS[k] ? 'Gorras ' + SUBS[k].toLowerCase() : (CATS.find(c => c.k === k) || {}).t || 'Todo';
 const BRANDS = [...new Set(P.map(p => p.b))].sort((a,b) => (a==='Be Cap Selección') - (b==='Be Cap Selección') || P.filter(p=>p.b===b).length - P.filter(p=>p.b===a).length);
 const FITS = ['Snapback','Strapback','Ajustable','Flex / cerrada'];
 
@@ -64,7 +72,7 @@ const heroP = vis(69);
 $('#heroCard').innerHTML = `<img src="${img(heroP)}" alt=""><div><small>Destacado · New Era</small><h4>${esc(heroP.t)}</h4><b>${money(heroP.p)}</b></div><span class="plus"><svg class="ic"><use href="#i-plus"/></svg></span>`;
 $('#heroCard').onclick = () => openProduct(heroP.id);
 
-$('#cats').innerHTML = CATS.map(c => `<button class="cat" data-cat="${c.k}"><img src="${img(vis(c.img))}" alt="" loading="lazy"><span class="arr"><svg class="ic" style="width:16px"><use href="#i-arrow"/></svg></span><div><h3>${c.t}</h3><small>${P.filter(p=>p.c===c.k).length} productos · ${c.s}</small></div></button>`).join('');
+$('#cats').innerHTML = CATS.map(c => { const n = nCat(c.k); return `<button class="cat" data-cat="${c.k}"><img src="${c.src || img(vis(c.img))}" alt="" loading="lazy"><span class="arr"><svg class="ic" style="width:16px"><use href="#i-arrow"/></svg></span><div><h3>${c.t}</h3><small>${n ? n + (n===1 ? ' producto · ' : ' productos · ') : ''}${c.s}</small></div></button>`; }).join('');
 
 const best = P.filter(p => p.bs).sort((a,b)=>b.a-a.a).concat([69,74,65,30].map(vis)).filter((p,i,a) => a.indexOf(p)===i);
 $('#bestScroller').innerHTML = best.map(card).join('');
@@ -72,7 +80,7 @@ const sc = $('#bestScroller');
 $('#bsPrev').onclick = () => sc.scrollBy({left: -sc.clientWidth*.8, behavior:'smooth'});
 $('#bsNext').onclick = () => sc.scrollBy({left: sc.clientWidth*.8, behavior:'smooth'});
 
-$('#megaCats').innerHTML = `<li><button data-cat="all">Ver todo <small>${P.length}</small></button></li>` + CATS.map(c => `<li><button data-cat="${c.k}">${c.t} <small>${P.filter(p=>p.c===c.k).length}</small></button></li>`).join('');
+$('#megaCats').innerHTML = `<li><button data-cat="all">Ver todo <small>${P.length}</small></button></li>` + CATS.map(c => `<li><button data-cat="${c.k}">${c.t} <small>${nCat(c.k) || ''}</small></button></li>`).join('');
 $('#megaBrands').innerHTML = BRANDS.filter(b=>b!=='Be Cap Selección').slice(0,8).map(b => `<li><button data-brand="${esc(b)}">${esc(b)} <small>${P.filter(p=>p.b===b).length}</small></button></li>`).join('');
 const fp = vis(61);
 $('#megaFeat').innerHTML = `<img src="${img(fp)}" alt=""><div>Gorras de diseñador<br><span style="color:var(--muted);font-weight:700">Kiblo Caps desde ${money(499)}</span></div>`;
@@ -95,17 +103,18 @@ $('#lookMinis').innerHTML = look.map(p => `<div class="mini" data-id="${p.id}"><
 /* ---------- shop filters ---------- */
 const F = { cat:'all', brands:new Set(), fits:new Set(), max:1399, avail:false, sale:false, q:'', sort:'feat', shown:12 };
 function renderFilterUI(){
-  $('#fCats').innerHTML = `<button data-fcat="all" class="${F.cat==='all'?'on':''}">Todo <small>${P.length}</small></button>` + CATS.map(c => `<button data-fcat="${c.k}" class="${F.cat===c.k?'on':''}">${c.t} <small>${P.filter(p=>p.c===c.k).length}</small></button>`).join('');
+  const gOpen = F.cat==='gorras' || !!SUBS[F.cat];
+  $('#fCats').innerHTML = `<button data-fcat="all" class="${F.cat==='all'?'on':''}">Todo <small>${P.length}</small></button>` + CATS.filter(c => nCat(c.k)).map(c => `<button data-fcat="${c.k}" class="${F.cat===c.k?'on':''}">${c.t} <small>${nCat(c.k)}</small></button>` + (c.k==='gorras' && gOpen ? Object.keys(SUBS).filter(k => nCat(k)).map(k => `<button data-fcat="${k}" class="sub ${F.cat===k?'on':''}">${SUBS[k]} <small>${nCat(k)}</small></button>`).join('') : '')).join('');
   $('#fFits').innerHTML = FITS.map(f => `<label class="chk"><input type="checkbox" data-fit="${f}" ${F.fits.has(f)?'checked':''}>${f}<small>${P.filter(p=>p.f===f).length}</small></label>`).join('');
   $('#fBrands').innerHTML = BRANDS.map(b => `<label class="chk"><input type="checkbox" data-fbrand="${esc(b)}" ${F.brands.has(b)?'checked':''}>${esc(b)}<small>${P.filter(p=>p.b===b).length}</small></label>`).join('');
 }
 const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 function filtered(){
   const q = norm(F.q.trim());
-  let r = P.filter(p => (F.cat==='all' || p.c===F.cat) && (!F.brands.size || F.brands.has(p.b)) && (!F.fits.size || F.fits.has(p.f)) && p.p <= F.max && (!F.avail || p.a) && (!F.sale || p.cp) && (!q || q.split(/\s+/).every(w => norm(p.t+' '+p.b+' '+catName(p.c)+' '+p.d).includes(w))));
+  let r = P.filter(p => inCat(p, F.cat) && (!F.brands.size || F.brands.has(p.b)) && (!F.fits.size || F.fits.has(p.f)) && p.p <= F.max && (!F.avail || p.a) && (!F.sale || p.cp) && (!q || q.split(/\s+/).every(w => norm(p.t+' '+p.b+' '+catName(p.g)+' '+p.d).includes(w))));
   const s = F.sort;
   if(s==='lo') r.sort((a,b)=>a.p-b.p); else if(s==='hi') r.sort((a,b)=>b.p-a.p); else if(s==='az') r.sort((a,b)=>a.t.localeCompare(b.t)); else if(s==='new') r.sort((a,b)=>a.id-b.id);
-  else r.sort((a,b)=> (b.a-a.a) || (b.bs-a.bs) || ((a.c==='ropa'||a.c==='complementos') - (b.c==='ropa'||b.c==='complementos')) || a.id-b.id);
+  else r.sort((a,b)=> (b.a-a.a) || (b.bs-a.bs) || ((a.g!=='gorras') - (b.g!=='gorras')) || a.id-b.id);
   return r;
 }
 function renderGrid(){
@@ -127,7 +136,14 @@ function renderGrid(){
   $('#activeF').innerHTML = af.map(([k,t]) => `<button data-rm="${k}" data-v="${esc(t)}">${esc(t)} <svg class="ic" style="width:14px;height:14px"><use href="#i-x"/></svg></button>`).join('') + (af.length>1?`<button data-rm="all" style="background:none;text-decoration:underline">Limpiar todo</button>`:'');
 }
 function update(resetShown=true){ if(resetShown) F.shown = 12; renderFilterUI(); renderGrid(); }
-function setCat(k, scroll=true){ F.cat = k; F.brands.clear(); F.fits.clear(); F.q=''; $('#q').value=''; update(); if(scroll) document.getElementById('tienda').scrollIntoView({behavior:'smooth'}); }
+function setCat(k, scroll=true){
+  const c = CATS.find(x => x.k === k);
+  if(c && c.go && !nCat(k)){   // categorías de servicio sin productos publicados: llevan al Studio o a WhatsApp
+    if(c.go==='studio') document.getElementById('studio').scrollIntoView({behavior:'smooth'});
+    else window.open(`https://wa.me/${WA}?text=${encodeURIComponent('¡Hola Be Cap! Me interesan sus paquetes de mayoreo de gorras. ¿Me pueden dar información?')}`, '_blank', 'noopener');
+    return;
+  }
+  F.cat = k; F.brands.clear(); F.fits.clear(); F.q=''; $('#q').value=''; update(); if(scroll) document.getElementById('tienda').scrollIntoView({behavior:'smooth'}); }
 function setBrand(b){ F.cat='all'; F.brands = new Set([b]); update(); document.getElementById('tienda').scrollIntoView({behavior:'smooth'}); }
 
 document.addEventListener('change', e => {
@@ -191,7 +207,7 @@ function renderPM(){
   $('#pmBox').innerHTML = `<button class="mx" data-close aria-label="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
   <div class="pm-gal"><div class="pm-main" id="pmMain">${tagsHtml(p)}<img src="${img(p,cur.k)}" alt="${esc(p.t)}" id="pmImg"></div>${p.n>1?`<div class="pm-thumbs">${thumbs}</div>`:''}</div>
   <div class="pm-info">
-    <div class="brand">${esc(p.b)} · ${catName(p.c)}</div>
+    <div class="brand">${esc(p.b)} · ${catName(p.g)}</div>
     <h3>${esc(p.t)}</h3>
     <div class="price ${p.cp?'red':''}"><span class="now">${money(price)}</span>${p.cp && !v ? `<s>${money(p.cp)}</s>`:''} <small style="color:var(--muted);font-weight:600">MXN</small></div>
     ${p.d?`<p class="d">${esc(p.d)}${p.d.length>=218?'…':''}</p>`:''}
@@ -310,7 +326,7 @@ $('#soSug').innerHTML = ['Yankees','Dodgers','Kiblo','New Era','Woodstock','Hood
 $('#soSug').onclick = e => { const b = e.target.closest('[data-s]'); if(b){ $('#soQ').value = b.dataset.s; renderSO(); } };
 function renderSO(){
   const q = norm($('#soQ').value.trim());
-  const r = q ? P.filter(p => q.split(/\s+/).every(w => norm(p.t+' '+p.b+' '+catName(p.c)).includes(w))) : best.slice(0,8);
+  const r = q ? P.filter(p => q.split(/\s+/).every(w => norm(p.t+' '+p.b+' '+catName(p.g)).includes(w))) : best.slice(0,8);
   $('#soRes').innerHTML = (q?'':`<p style="grid-column:1/-1;font-weight:800;color:var(--muted)">Populares</p>`) + (r.length ? r.slice(0,12).map(card).join('') : `<p style="grid-column:1/-1;color:var(--muted)">Sin resultados para “${esc($('#soQ').value)}”.</p>`);
 }
 $('#soQ').addEventListener('input', renderSO);

@@ -6,6 +6,9 @@ Sitio estático publicado en Hostinger desde la rama `main`.
 - `studio/`: modelo 3D de la gorra (`becap-gorra.glb`) y texturas de Be Cap Studio 3D.
 - `_fuente/`: código sin minificar. `node build.mjs` regenera `index.html` (requiere `npm i terser csso`).
 - Catálogo de tipos y colores de gorra: `_fuente/catalogo.js` (del PDF "ORIGINAL COLORES BECAP").
+- **Precios del Studio 3D: `studio/precios.js`.** Precio de la gorra lisa por modelo, texto por zona y logo por técnica (Bordado 3D, Bordado 2D, Parche, DTF). Se edita solo el número; no hay que reconstruir `index.html`.
+- Colocación real en el Studio: bordado frontal a 2.5 cm de la visera y nombres laterales (izquierdo y derecho) a 1.5 cm del borde inferior (constantes al inicio de la sección "bordados" en `_fuente/studio.js`).
+- Categorías de la tienda: Gorras (Originales, Diseñador, Vintage & Flex, Bucket), Ropa, Personalizado, Paquetes mayoreo, Accesorios y Limpieza. Se asignan desde el panel (Productos → Categoría).
 
 ## Panel de control (`panel/`)
 

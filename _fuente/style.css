@@ -270,8 +270,9 @@ header.top{position:sticky;top:0;z-index:60;background:rgba(251,248,242,.86);bac
 .st-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .chipbtn{height:36px;padding:0 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.15);font-size:13px;font-weight:800}
 .chipbtn:hover,.chipbtn.on{border-color:var(--yellow);color:var(--yellow)}
-.zones{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:rgba(255,255,255,.05);padding:5px;border-radius:14px}
-.zones button{height:38px;border-radius:10px;font-weight:800;font-size:13px;color:#cfc8ba}
+.zones{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(255,255,255,.05);padding:5px;border-radius:14px}
+.zones button{min-height:38px;padding:4px 2px;line-height:1.15;border-radius:10px;font-weight:800;font-size:12.5px;color:#cfc8ba;position:relative}
+.zones button.has::after{content:"";position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--yellow)}
 .zones button.on{background:var(--paper);color:var(--ink)}
 .field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .field label{font-size:12.5px;font-weight:800;color:#cfc8ba}
@@ -585,3 +586,29 @@ footer a:hover,footer ul button:hover{color:var(--yellow)}
 .tot-ship{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--muted);margin:-6px 0 12px}
 .nav .team-link{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
 .mnav .team-link{color:var(--muted);font-size:16px;justify-content:flex-start;gap:8px}
+
+/* Studio: colocación, técnicas, precios y orden PDF */
+.place-note{font-size:12.5px;color:#9c9587;margin:8px 2px 0;line-height:1.45}
+.place-note::before{content:"📏 "}
+.opt .pr{font-size:12px;font-weight:800;color:var(--yellow);margin-top:3px}
+.opt .pr:empty{display:none}
+.tech-note{font-size:12.5px;color:#cfc8ba;margin:8px 2px 0;line-height:1.45}
+.tech-note:empty{display:none}
+.borders{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.borders button{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);font-weight:800;font-size:14px}
+.borders button i{width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4)}
+.borders button.on{border-color:var(--yellow);background:rgba(255,210,74,.08)}
+.zprice{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;margin-top:20px;padding:12px 14px;border-radius:12px;background:rgba(255,210,74,.08);border:1px solid rgba(255,210,74,.25);font-size:13px;color:#cfc8ba}
+.zprice b{color:var(--yellow)}
+.quote{margin-top:14px;background:#141312;border-radius:14px;padding:6px 16px 12px;font-size:13.5px;color:#cfc8ba}
+.quote .qr{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.quote .qr b{color:#fff;white-space:nowrap}
+.quote .qr.sub b{color:var(--yellow)}
+.quote .qr.tot{border-bottom:0;font-size:15.5px;font-weight:800;color:#fff;padding-top:12px}
+.quote .qr.tot b{color:var(--yellow);font-size:18px}
+.quote .qnote{font-size:12px;color:#9c9587;margin:4px 0 0;line-height:1.45}
+.qpdf{width:100%;margin-top:12px;color:#fff;border-color:rgba(255,255,255,.25)}
+.qpdf:hover{border-color:var(--yellow);color:var(--yellow)}
+@media (max-width:560px){.zones button{font-size:11.5px}.views button{padding:0 7px}}
+.catlist button.sub{padding-left:22px;font-size:13.5px}
+.qpdf:hover{background:transparent}
