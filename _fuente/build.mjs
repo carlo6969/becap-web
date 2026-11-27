@@ -20,6 +20,7 @@ ${body}
 <script src="panel/api/productos.php"></script>
 <script>window.__P||document.write('<script src="productos.js"><\\/script>')</script>
 <script src="conexion-panel.js" defer></script>
+<script src="studio/precios.js"></script>
 <script>
 ${store}
 </script>

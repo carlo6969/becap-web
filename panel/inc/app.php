@@ -142,7 +142,10 @@ function es_post(): bool {
 }
 
 /* ---------- catálogo de productos (fuente: base de datos; la web lo lee de aquí) ---------- */
-const CATS = ['vintage' => 'Vintage', 'originales' => 'Originales', 'disenador' => 'Diseñador', 'bucket' => 'Bucket', 'ropa' => 'Ropa', 'complementos' => 'Complementos'];
+// Categorías de la tienda: Gorras (con su estilo), Ropa, Personalizado, Paquetes mayoreo, Accesorios y Limpieza.
+// Las claves de siempre se conservan para no tener que mover los productos que ya están guardados.
+const CATS = ['originales' => 'Gorras · Originales', 'disenador' => 'Gorras · Diseñador', 'vintage' => 'Gorras · Vintage & Flex', 'bucket' => 'Gorras · Bucket & Brimless',
+  'ropa' => 'Ropa', 'personalizado' => 'Personalizado', 'mayoreo' => 'Paquetes mayoreo', 'complementos' => 'Accesorios', 'limpieza' => 'Limpieza'];
 const AJUSTES = ['' => 'Sin especificar', 'Snapback' => 'Snapback', 'Strapback' => 'Strapback', 'Ajustable' => 'Ajustable', 'Flex / cerrada' => 'Flex / cerrada'];
 
 // Primera vez: importa los productos que ya estaban en la web (productos.js) con sus fotos y variantes

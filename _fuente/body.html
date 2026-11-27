@@ -78,7 +78,7 @@
       </div>
     </div>
     <div class="hero-art">
-      <div class="hero-img"><img src="img/hero.webp" alt="Muro de gorras New Era en la tienda Be Cap" fetchpriority="high"></div>
+      <div class="hero-img"><img src="img/fachada.webp" alt="Fachada de la tienda Be Cap en Av. Revolución 503, Pachuca" fetchpriority="high"></div>
       <div class="open-pill" id="openPill"><span class="dot"></span><span>Tienda abierta</span></div>
       <svg class="sticker" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="circ" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs><circle cx="100" cy="100" r="98" fill="#ffd24a" stroke="#0f0e0c" stroke-width="3"/><text font-family="Archivo" font-weight="900" font-size="21" letter-spacing="4" fill="#0f0e0c"><textPath href="#circ">BE CAP · PACHUCA · ENVÍOS MX · </textPath></text></svg>
       <div class="sticker-in"><img src="img/mascota.webp" alt=""></div>
@@ -91,7 +91,7 @@
 
 <section class="sec" id="categorias">
   <div class="wrap">
-    <div class="sec-head reveal"><div><span class="eyebrow">Explora</span><h2 class="display">Encuentra tu gorra</h2></div><p>Desde New Era originales hasta marcas de diseñador mexicanas y modelos vintage. Elige por estilo y encuentra la que va contigo.</p></div>
+    <div class="sec-head reveal"><div><span class="eyebrow">Explora</span><h2 class="display">Encuentra lo tuyo</h2></div><p>Gorras originales, de diseñador y vintage, ropa, accesorios y cuidado para tu gorra. Y si la quieres única, diséñala tú o pide paquetes de mayoreo para tu marca.</p></div>
     <div class="cats reveal" id="cats"></div>
   </div>
 </section>
@@ -140,7 +140,7 @@
         <h2 class="display">La gorra es el inicio. <span>El look, lo terminas aquí.</span></h2>
         <p>Hoodies, playeras, calcetas, lentes y bandanas para combinar con tu gorra favorita.</p>
         <div class="minis" id="lookMinis"></div>
-        <div><button class="btn btn-y" data-cat="ropa">Ver ropa y complementos <svg class="ic"><use href="#i-arrow"/></svg></button></div>
+        <div><button class="btn btn-y" data-cat="ropa">Ver ropa y accesorios <svg class="ic"><use href="#i-arrow"/></svg></button></div>
       </div>
     </div>
   </div>
@@ -154,7 +154,7 @@
         <canvas id="cap3d" aria-label="Vista 3D de tu gorra"></canvas>
         <div class="st-load" id="stLoad">Cargando estudio 3D…</div>
         <div class="st-top">
-          <div class="views" id="views"><button data-v="front" class="on">Frente</button><button data-v="side">Lado</button><button data-v="back">Atrás</button><button data-v="top">Arriba</button></div>
+          <div class="views" id="views"><button data-v="front" class="on">Frente</button><button data-v="left">Izq.</button><button data-v="right">Der.</button><button data-v="back">Atrás</button><button data-v="top">Arriba</button></div>
           <div class="st-tools"><button id="stRot" title="Girar automáticamente" aria-label="Girar automáticamente"><svg class="ic"><use href="#i-rotate"/></svg></button><button id="stShot" title="Descargar imagen" aria-label="Descargar imagen"><svg class="ic"><use href="#i-dl"/></svg></button><button id="stReset" title="Reiniciar diseño" aria-label="Reiniciar diseño"><svg class="ic"><use href="#i-undo"/></svg></button></div>
         </div>
         <div class="st-sum" id="stSum"></div>
@@ -181,11 +181,12 @@
           </div>
           <div class="st-step" data-s="2">
             <p class="st-l">Zona del bordado</p>
-            <div class="zones" id="zones"><button class="on" data-z="front">Frente</button><button data-z="side">Lateral</button><button data-z="back">Atrás</button></div>
+            <div class="zones" id="zones"><button class="on" data-z="front">Frente</button><button data-z="left">Lateral izq.</button><button data-z="right">Lateral der.</button><button data-z="back">Atrás</button></div>
+<p class="place-note" id="placeNote"></p>
             <p class="st-l">¿Qué quieres poner?</p>
             <div class="opts c3" id="dMode">
-              <button class="opt on" data-m="text"><b>Texto</b><small>Tu frase o nombre</small></button>
-              <button class="opt" data-m="logo"><b>Logo</b><small>Sube tu imagen</small></button>
+              <button class="opt on" data-m="text"><b>Texto</b><small>Tu frase o nombre</small><span class="pr"></span></button>
+              <button class="opt" data-m="logo"><b>Logo</b><small>Sube tu imagen</small><span class="pr"></span></button>
               <button class="opt" data-m="none"><b>Nada</b><small>Zona lisa</small></button>
             </div>
             <div id="dText">
@@ -194,37 +195,45 @@
               <div class="field"><label for="dFont">Tipografía</label><select id="dFont"><option value="Archivo Black">Bloque urbano</option><option value="Graduate">Varsity / universitaria</option><option value="Pirata One">Gótica (old english)</option><option value="Yellowtail">Script / firma</option><option value="Bungee">Display redondeada</option></select></div>
             </div>
             <div id="dLogo" style="display:none">
-              <label class="upl" for="dFile"><svg class="ic"><use href="#i-dl"/></svg><span id="dFileL">Sube tu logo (PNG con fondo transparente se ve mejor)</span></label>
+              <label class="upl" for="dFile"><svg class="ic"><use href="#i-dl"/></svg><span id="dFileL">Sube tu logo (PNG, JPG; quitamos el fondo liso)</span></label>
               <input type="file" id="dFile" accept="image/*" hidden>
-              <label class="toggle" style="margin-top:10px;color:#cfc8ba">Convertir a un solo color de hilo<input type="checkbox" id="dTint" checked></label>
+              <label class="toggle" id="tintRow" style="margin-top:10px;color:#cfc8ba">Convertir a un solo color de hilo<input type="checkbox" id="dTint" checked></label>
             </div>
             <div id="dCommon">
               <p class="st-l">Técnica</p>
-              <div class="opts c3" id="dTech">
-                <button class="opt on" data-t="puff"><b>Bordado 3D</b><small>En relieve</small></button>
-                <button class="opt" data-t="flat"><b>Plano</b><small>Bordado fino</small></button>
-                <button class="opt" data-t="patch"><b>Parche</b><small>Con borde</small></button>
+              <div class="opts" id="dTech">
+                <button class="opt on" data-t="puff"><b>Bordado 3D</b><small>En relieve · letras anchas</small><span class="pr"></span></button>
+                <button class="opt" data-t="flat"><b>Bordado 2D</b><small>Bordado plano</small><span class="pr"></span></button>
+                <button class="opt" data-t="patch"><b>Parche</b><small>Sigue la forma del diseño</small><span class="pr"></span></button>
+                <button class="opt" data-t="dtf"><b>Estampado DTF</b><small>Impresión a color</small><span class="pr"></span></button>
               </div>
-              <p class="st-l">Color del hilo</p>
-              <div class="swatches" id="threadSw"></div>
+              <p class="tech-note" id="techNote"></p>
               <div id="patchOpts" style="display:none">
-                <p class="st-l">Color del parche</p>
-                <div class="swatches" id="patchSw"></div>
+                <p class="st-l">Borde del parche</p>
+                <div class="borders" id="patchSw"><button data-pa="#f3f1ec"><i style="background:#f3f1ec"></i>Blanco</button><button data-pa="#141414"><i style="background:#141414"></i>Negro</button></div>
+              </div>
+              <div id="threadBox">
+                <p class="st-l" id="threadL">Color del hilo</p>
+                <div class="swatches" id="threadSw"></div>
               </div>
               <div class="two" style="margin-top:14px">
                 <div class="field"><label>Tamaño</label><input type="range" id="dSize" min="40" max="100" value="80"></div>
-                <div class="field"><label>Posición vertical</label><input type="range" id="dY" min="-100" max="100" value="0"></div>
+                <div class="field"><label id="dYL">Posición vertical</label><input type="range" id="dY" min="-100" max="100" value="0"></div>
               </div>
             </div>
+            <div class="zprice" id="zPrice"></div>
           </div>
           <div class="st-step" data-s="3">
             <p class="st-l">¿Cuántas piezas?</p>
             <div class="qtys" id="qtys"><button class="on" data-q="1">1</button><button data-q="6">6</button><button data-q="12">12</button><button data-q="24">24</button><button data-q="50+">50+</button></div>
+            <p class="st-l">Tu cotización</p>
+            <div class="quote" id="quote"></div>
             <div class="field"><label for="qName">Tu nombre</label><input type="text" id="qName" placeholder="Nombre y apellido"></div>
             <div class="two"><div class="field"><label for="qDate">¿Para cuándo?</label><input type="date" id="qDate"></div><div class="field"><label for="qUse">Uso</label><select id="qUse"><option>Personal / regalo</option><option>Mi marca</option><option>Negocio / uniforme</option><option>Evento</option><option>Equipo deportivo</option></select></div></div>
             <div class="field"><label for="qNotes">Comentarios</label><textarea id="qNotes" placeholder="Algo más que debamos saber de tu diseño"></textarea></div>
             <div class="spec" id="spec"></div>
-            <p class="note">Al enviar se abre WhatsApp con tu diseño descrito. Descarga la imagen con el botón ⤓ y adjúntala en el chat para que te coticemos más rápido.</p>
+            <button class="btn btn-ghost qpdf" id="qPdf" type="button"><svg class="ic"><use href="#i-dl"/></svg> Descargar orden de producción (PDF)</button>
+            <p class="note">Al enviar se descarga tu orden de producción en PDF y se abre WhatsApp con tu diseño y precio. Adjunta el PDF en el chat para que confirmemos tu pedido más rápido.</p>
           </div>
         </div>
         <div class="st-foot">
